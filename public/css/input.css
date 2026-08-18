@@ -1,1 +1,15 @@
 @import "tailwindcss";
+@import "../style.css";
+
+@theme {
+  --color-ink: #171717;
+  --color-vermilion: #b84c4f;
+  --color-sakura: #f3d9ca;
+  --color-ivory: #fbf6ef;
+  --color-mist: #e9e5df;
+  --font-display: "Cormorant Garamond", serif;
+  --font-sans: "DM Sans", sans-serif;
+}
+
+@source "../**/*.html";
+@source "../js/**/*.js";
