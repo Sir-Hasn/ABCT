@@ -109,7 +109,7 @@ adminMenuRouter.patch("/:itemId", async (request, response, next) => {
     validatePhotoUrl(updates.itemPhotoUrl);
 
     const item = await Items.findByIdAndUpdate(request.params.itemId, updates, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
     if (!item) {
@@ -140,7 +140,7 @@ adminMenuRouter.patch("/:itemId/availability", async (request, response, next) =
     const item = await Items.findByIdAndUpdate(
       request.params.itemId,
       { itemAvailable: request.body.itemAvailable },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!item) {
       throw requestError("Menu item not found.", 404);

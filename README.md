@@ -5,6 +5,12 @@
 The backend is an Express and MongoDB service for restaurant bookings, menu
 items, and staff accounts.
 
+The production admin pages load scripts from `admin/js/`. The root-level admin
+scripts are UI-preview files and are not part of the production flow. The
+production login validates the email format and required password fields in the
+browser, then verifies the credentials through the backend before creating a
+browser-tab session.
+
 ### Start it locally
 
 1. Add `MONGODB_URI`, `JWT_SECRET`, and `PORT` to the project-root `.env` file.

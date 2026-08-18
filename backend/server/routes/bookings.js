@@ -38,6 +38,19 @@ function parseFunctionHallSchedule(bookingDate, bookingStartTime, bookingEndTime
   return { start, end, durationHours };
 }
 
+function dateTextInManila(value) {
+  if (typeof value === "string") return value.slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date(value));
+}
+
+function buildFunctionHallSlots(start, end, bookingId) {
+  const slots = [];
+  for (let slotStart = new Date(start); slotStart < end; slotStart.setUTCHours(slotStart.getUTCHours() + 1)) {
+    slots.push({ resource: "function-hall", slotStart: new Date(slotStart), bookingId });
+  }
+  return slots;
+}
+
 async function buildFoodOrder(selectedMenuItems) {
   if (selectedMenuItems === undefined) {
     return { foodOrders: [], foodOrderTotal: 0 };
@@ -217,7 +230,19 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
   let session;
   try {
     const { bookingId } = request.params;
-    const { bookingStatus, bookingDepositStatus, bookingNotes } = request.body;
+    const {
+      bookingStatus,
+      bookingDepositStatus,
+      bookingNotes,
+      userFullName,
+      userPhone,
+      userEmail,
+      bookingDate,
+      bookingTimeSlot,
+      bookingGuestCount,
+      bookingStartTime,
+      bookingEndTime,
+    } = request.body;
 
     if (!mongoose.isValidObjectId(bookingId)) {
       throw requestError("Invalid booking ID.", 400);
@@ -231,8 +256,33 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
     if (bookingNotes !== undefined && (typeof bookingNotes !== "string" || bookingNotes.length > 1000)) {
       throw requestError("Notes must be text with at most 1,000 characters.", 400);
     }
-    if (bookingStatus === undefined && bookingDepositStatus === undefined && bookingNotes === undefined) {
-      throw requestError("Provide a booking status, deposit status, or notes update.", 400);
+    if (userFullName !== undefined && (typeof userFullName !== "string" || !userFullName.trim() || userFullName.length > 100)) {
+      throw requestError("Guest name is required and must be at most 100 characters.", 400);
+    }
+    if (userPhone !== undefined && (typeof userPhone !== "string" || !userPhone.trim() || userPhone.length > 30)) {
+      throw requestError("Phone number is required and must be at most 30 characters.", 400);
+    }
+    if (userEmail !== undefined && (typeof userEmail !== "string" || !/^\S+@\S+\.\S+$/.test(userEmail.trim()))) {
+      throw requestError("A valid email address is required.", 400);
+    }
+    if (bookingDate !== undefined && (typeof bookingDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate))) {
+      throw requestError("Booking date must use YYYY-MM-DD format.", 400);
+    }
+    if (bookingTimeSlot !== undefined && typeof bookingTimeSlot !== "string") {
+      throw requestError("Booking time slot must be text.", 400);
+    }
+    if (bookingGuestCount !== undefined && (!Number.isInteger(bookingGuestCount) || bookingGuestCount < 1 || bookingGuestCount > 500)) {
+      throw requestError("Guest count must be a whole number from 1 to 500.", 400);
+    }
+    for (const time of [bookingStartTime, bookingEndTime]) {
+      if (time !== undefined && typeof time !== "string") {
+        throw requestError("Booking times must be text.", 400);
+      }
+    }
+    const scheduleWasEdited = [bookingDate, bookingStartTime, bookingEndTime].some((value) => value !== undefined);
+    const detailsWereEdited = [userFullName, userPhone, userEmail, bookingDate, bookingTimeSlot, bookingGuestCount, bookingStartTime, bookingEndTime].some((value) => value !== undefined);
+    if (bookingStatus === undefined && bookingDepositStatus === undefined && bookingNotes === undefined && !detailsWereEdited) {
+      throw requestError("Provide a booking status, deposit status, notes, or booking detail update.", 400);
     }
 
     session = await mongoose.startSession();
@@ -262,6 +312,26 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
         booking.bookingNotes = bookingNotes;
       }
 
+      if (userFullName !== undefined) booking.userFullName = userFullName.trim();
+      if (userPhone !== undefined) booking.userPhone = userPhone.trim();
+      if (userEmail !== undefined) booking.userEmail = userEmail.trim().toLowerCase();
+      if (bookingGuestCount !== undefined) booking.bookingGuestCount = bookingGuestCount;
+      if (bookingTimeSlot !== undefined) booking.bookingTimeSlot = bookingTimeSlot.trim();
+      if (bookingDate !== undefined) booking.bookingDate = new Date(`${bookingDate}T00:00:00+08:00`);
+      if (bookingStartTime !== undefined) booking.bookingStartTime = bookingStartTime.trim();
+      if (bookingEndTime !== undefined) booking.bookingEndTime = bookingEndTime.trim();
+
+      if (scheduleWasEdited && booking.bookingType === "function-hall") {
+        const nextDate = dateTextInManila(bookingDate ?? booking.bookingDate);
+        const nextStart = bookingStartTime ?? booking.bookingStartTime;
+        const nextEnd = bookingEndTime ?? booking.bookingEndTime;
+        const { start, end, durationHours } = parseFunctionHallSchedule(nextDate, nextStart, nextEnd);
+        booking.functionHallExtensionHours = durationHours - FUNCTION_HALL_MIN_HOURS;
+        booking.functionHallExtensionFee = (durationHours - FUNCTION_HALL_MIN_HOURS) * FUNCTION_HALL_EXTENSION_FEE_PER_HOUR;
+        await BookingSlot.deleteMany({ bookingId: booking._id }).session(session);
+        await BookingSlot.insertMany(buildFunctionHallSlots(start, end, booking._id), { session, ordered: true });
+      }
+
       updatedBooking = await booking.save({ session });
     });
 
@@ -270,8 +340,17 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
       booking: updatedBooking,
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return response.status(409).json({ message: "The Function Hall is already requested for part of that time range." });
+    }
     if (error.status) {
       return response.status(error.status).json({ message: error.message });
+    }
+    if (error.name === "ValidationError") {
+      return response.status(422).json({
+        message: "Please check the booking details and try again.",
+        errors: Object.values(error.errors).map((item) => item.message),
+      });
     }
     next(error);
   } finally {
