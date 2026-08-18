@@ -1,70 +1,59 @@
-//Shared behavior across pages — navigation menu toggling, any common UI logic
-const menuToggle = document.querySelector('#menu-toggle');
-const mainNav = document.querySelector('#main-nav');
-// The toast is a temporary, non-blocking status message for UI-only actions such as previews and form confirmations.
-const toast = document.querySelector('#toast');
-const backdrop = document.querySelector('#modal-backdrop');
-const modalClose = document.querySelector('#modal-close');
+const toast = document.querySelector("#toast");
 
-function showToast(message) {
+function showToast(message, kind = "default") {
+  if (!toast) return;
   toast.textContent = message;
-  toast.classList.add('show');
+  toast.dataset.kind = kind;
+  toast.classList.add("show");
   window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2800);
+  showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 3200);
 }
 
-menuToggle.addEventListener('click', () => {
-  const isOpen = mainNav.classList.toggle('open');
-  menuToggle.setAttribute('aria-expanded', String(isOpen));
-  menuToggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
-});
+const menuToggle = document.querySelector("#menu-toggle");
+const mainNav = document.querySelector("#main-nav");
+if (menuToggle && mainNav) {
+  menuToggle.addEventListener("click", () => {
+    const isOpen = mainNav.classList.toggle("open");
+    menuToggle.setAttribute("aria-expanded", String(isOpen));
+    menuToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+  });
 
-document.querySelectorAll('.main-nav a').forEach((link) => {
-  link.addEventListener('click', () => {
-    mainNav.classList.remove('open');
-    menuToggle.setAttribute('aria-expanded', 'false');
+  mainNav.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => {
+    mainNav.classList.remove("open");
+    menuToggle.setAttribute("aria-expanded", "false");
+  }));
+}
+
+document.querySelectorAll("[data-open-reservation]").forEach((button) => {
+  button.addEventListener("click", () => {
+    window.location.href = "reservation.html";
   });
 });
 
-document.querySelectorAll('[data-filter]').forEach((filterButton) => {
-  filterButton.addEventListener('click', () => {
-    document.querySelectorAll('[data-filter]').forEach((button) => button.classList.remove('active'));
-    filterButton.classList.add('active');
-    const category = filterButton.dataset.filter;
-    document.querySelectorAll('.dish-card').forEach((card) => {
-      card.hidden = category !== 'all' && card.dataset.category !== category;
-    });
+document.querySelectorAll("[data-open-story]").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelector("#story")?.scrollIntoView({ behavior: "smooth" });
   });
 });
 
-function openModal() {
-  backdrop.hidden = false;
-  document.body.style.overflow = 'hidden';
-  modalClose.focus();
-}
-function closeModal() {
-  backdrop.hidden = true;
-  document.body.style.overflow = '';
-}
-
-document.querySelectorAll('[data-open-reservation]').forEach((button) => button.addEventListener('click', openModal));
-document.querySelector('[data-open-menu]').addEventListener('click', () => showToast('The full menu is coming soon — enjoy this preview for now.'));
-document.querySelector('[data-open-story]').addEventListener('click', () => showToast('Our story begins with one small counter in Tokyo.'));
-modalClose.addEventListener('click', closeModal);
-backdrop.addEventListener('click', (event) => { if (event.target === backdrop) closeModal(); });
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !backdrop.hidden) closeModal(); });
-
-document.querySelector('#reservation-form').addEventListener('submit', (event) => {
-  event.preventDefault();
-  closeModal();
-  showToast('Thanks — your table request is ready to be connected.');
-  event.target.reset();
+document.addEventListener("click", (event) => {
+  const filterButton = event.target.closest("[data-filter]");
+  if (!filterButton) return;
+  const category = filterButton.dataset.filter;
+  document.querySelectorAll("[data-filter]").forEach((button) => {
+    button.classList.toggle("active", button === filterButton);
+  });
+  document.querySelectorAll("[data-menu-card]").forEach((card) => {
+    card.hidden = category !== "all" && card.dataset.category !== category;
+  });
 });
 
-document.querySelector('#newsletter-form').addEventListener('submit', (event) => {
+const newsletterForm = document.querySelector("#newsletter-form");
+newsletterForm?.addEventListener("submit", (event) => {
   event.preventDefault();
-  const email = document.querySelector('#email');
-  if (!email.value) return;
-  showToast('You’re on the list. See you at ABCT.');
-  event.target.reset();
+  if (!newsletterForm.reportValidity()) return;
+  showToast("You’re on the list. See you at ABCT.");
+  newsletterForm.reset();
 });
+
+window.ABCTShowToast = showToast;

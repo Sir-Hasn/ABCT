@@ -35,7 +35,7 @@
             <h1>A quiet place<br />for <em>good</em> food.</h1>
             <p class="hero-intro"> Inspired by the artistry of Japanese cuisine, ABCT brings refined flavors and thoughtful craftsmanship into every dish.</p>
             <div class="hero-actions"><a class="button button-dark" href="#menu">Explore the menu <span>↗</span></a><button class="play-link" data-open-story><span class="play-icon">▶</span> See our story</button></div>
-            <div class="hero-foot"><span>TUES-SUN</span><span>EASTRIDGE GOLFCLUB, BINANGONAN RIZAL</span><span>11:00 AM TO 9:00 PM</span></div>
+            <div class="hero-foot"><span>TUE - SUN</span><span>EASTRIDGE GOLFCLUB, BINANGONAN RIZAL</span><span>11:00 AM TO 9:00 PM</span></div>
           </div>
         </section>
 
@@ -51,24 +51,27 @@
         </section>
 
         <section class="menu-section" id="menu">
-          <div class="menu-heading"><div><p class="eyebrow">A taste of japanese culture / メニュー</p><h2>Made for sharing.</h2></div><button class="button button-outline" data-open-menu>View full menu <span>↗</span></button></div>
-          <div class="filter-row" role="tablist" aria-label="Menu categories"><button class="filter active" data-filter="all">All plates</button><button class="filter" data-filter="sushi">Sushi</button><button class="filter" data-filter="small">Small plates</button><button class="filter" data-filter="sweet">Sweet</button></div>
-          <div class="dish-grid">
-            <article class="dish-card" data-category="sushi"><div class="dish-image dish-sushi"><span>鮨</span><div class="dish-shape shape-fish"></div></div><div class="dish-meta"><div><h3>Chef's selection</h3><p>12 pieces · seasonal fish</p></div><strong>¥4,800</strong></div></article>
-            <article class="dish-card featured-dish" data-category="small"><div class="dish-image dish-ramen"><span>一椀</span><div class="bowl"></div><div class="steam"></div></div><div class="dish-meta"><div><h3>Smoked miso ramen</h3><p>Chashu · egg · spring onion</p></div><strong>¥1,600</strong></div></article>
-            <article class="dish-card" data-category="sweet"><div class="dish-image dish-sweet"><span>甘味</span><div class="mochi"></div></div><div class="dish-meta"><div><h3>Matcha mochi</h3><p>Hokkaido milk · black sesame</p></div><strong>¥720</strong></div></article>
+          <div class="menu-heading"><div><p class="eyebrow">A taste of japanese culture / メニュー</p><h2>Made for sharing.</h2></div><a class="button button-outline" href="menu.html">View full menu <span>↗</span></a></div>
+          <div class="filter-row" data-menu-filters role="tablist" aria-label="Menu categories"><button class="filter active" data-filter="all">All plates</button><button class="filter" data-filter="sushi">Sushi</button><button class="filter" data-filter="small">Small plates</button><button class="filter" data-filter="sweet">Sweet</button></div>
+          <div class="dish-grid" data-menu-grid data-limit="3">
+            <article class="dish-card" data-menu-card data-category="sushi"><div class="dish-image dish-sushi"><span>鮨</span><div class="dish-shape shape-fish"></div></div><div class="dish-meta"><div><h3>Chef's selection</h3><p>12 pieces · seasonal fish</p></div><strong>¥4,800</strong></div></article>
+            <article class="dish-card featured-dish" data-menu-card data-category="small"><div class="dish-image dish-ramen"><span>一椀</span><div class="bowl"></div><div class="steam"></div></div><div class="dish-meta"><div><h3>Smoked miso ramen</h3><p>Chashu · egg · spring onion</p></div><strong>¥1,600</strong></div></article>
+            <article class="dish-card" data-menu-card data-category="sweet"><div class="dish-image dish-sweet"><span>甘味</span><div class="mochi"></div></div><div class="dish-meta"><div><h3>Matcha mochi</h3><p>Hokkaido milk · black sesame</p></div><strong>¥720</strong></div></article>
           </div>
         </section>
 
-        <section class="visit-section" id="visit"><div class="visit-card"><div class="section-label light"><span>02</span><span>Find us</span></div><div><p class="eyebrow light-text">Come as you are / お待ちしています</p><h2>Dinner is<br /><em>better</em> together.</h2></div><div class="visit-details"><p>4-12-8 Jingumae<br />Shibuya-ku, Tokyo</p><p>Tue — Sun<br />12:00 — 23:00</p><button class="button button-light" data-open-reservation>Reserve a table <span>↗</span></button></div></div><div class="map-placeholder"><span class="map-pin">✦</span><p>Jingumae<br /><small>5 min from Meiji-jingumae station</small></p></div></section>
+        <section class="visit-section" id="visit"><div class="visit-card"><div class="section-label light"><span>02</span><span>Find us</span></div><div><p class="eyebrow light-text">Come as you are / お待ちしています</p><h2>Dinner is<br /><em>better</em> together.</h2></div><div class="visit-details"><p>EASTRIDGE GOLFCLUB<br />BINANGONAN RIZAL</p><p>Tue — Sun<br />11:00AM — 09:00PM</p><button class="button button-light" data-open-reservation>Reserve a table <span>↗</span></button></div></div><div class="map-placeholder"><span class="map-pin">✦</span><p>EASTRIDGE GOLFCLUB<br /><small>BINANGONAN RIZAL
+
+</small></p></div></section>
 
         <section class="newsletter-section"><div><p class="eyebrow">From our kitchen / ニュース</p><h2>A little note<br />from ABCT.</h2></div><form class="newsletter-form" id="newsletter-form"><label for="email">Seasonal menus, studio notes, and the occasional good idea.</label><div class="input-row"><input id="email" type="email" placeholder="Your email address" required /><button class="button button-dark" type="submit" aria-label="Subscribe">Join us <span>↗</span></button></div><p class="form-note">No noise. Just the good stuff.</p></form></section>
       </main>
       <footer class="site-footer"><a class="brand" href="#top"><span class="brand-mark" aria-label="ABCT logo">ABCT</span></a><p>Japanese-Inspired, Quality Driven.</p><div><a href="#menu">Instagram</a><a href="#visit">Contact</a><a href="#top">Back to top ↑</a></div></footer>
     </div>
 
-    <div class="modal-backdrop" id="modal-backdrop" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="Close dialog">×</button><p class="eyebrow">ABCT</p><h2 id="modal-title">Reserve your table.</h2><p class="modal-copy">Tell us when you would like to visit. This is a UI preview — no booking will be submitted.</p><form id="reservation-form" class="reservation-form"><label>Date<input type="date" required /></label><label>Guests<select required><option value="">Select guests</option><option>2 guests</option><option>3 guests</option><option>4 guests</option><option>5+ guests</option></select></label><button class="button button-dark" type="submit">Check availability <span>↗</span></button></form></div></div>
+    <script>window.ABCT_API_BASE_URL = window.ABCT_API_BASE_URL || "http://127.0.0.1:3101";</script>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="\js\main.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/menu.js"></script>
   </body>
 </html>

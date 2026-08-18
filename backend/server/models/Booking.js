@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
+import { isPhilippineMobile, normalizePhilippineMobile } from "../validation/phone.js";
 
 const orderedItemSchema = new mongoose.Schema(
   {
@@ -15,7 +16,17 @@ const orderedItemSchema = new mongoose.Schema(
 const bookingSchema = new mongoose.Schema(
   {
     userFullName: { type: String, required: true, trim: true, maxlength: 100 },
-    userPhone: { type: String, required: true, trim: true, maxlength: 30 },
+    userPhone: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 30,
+      set: (value) => normalizePhilippineMobile(value) || value,
+      validate: {
+        validator: isPhilippineMobile,
+        message: "Phone number must be a Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).",
+      },
+    },
     userEmail: {
       type: String,
       required: true,

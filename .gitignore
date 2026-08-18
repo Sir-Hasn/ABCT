@@ -1,5 +1,7 @@
 node_modules/
 .env
+.env.*
+!.env.example
 components/ABCT Catering Portfolio.pdf
 components/ABCT MENU.pdf
 components/ABCT_LOGO(default).png

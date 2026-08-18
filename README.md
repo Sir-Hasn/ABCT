@@ -22,7 +22,7 @@ browser-tab session.
 `GET /api/menu`
 
 Returns available menu items in an `items` array. Example local URL:
-`http://127.0.0.1:3000/api/menu`.
+`http://127.0.0.1:3101/api/menu`.
 
 `POST /api/bookings`
 
@@ -127,3 +127,51 @@ overwrite an existing staff email. Do not add a public staff-registration page.
   unique item number.
 - Staff passwords must be stored as bcrypt hashes; they are never returned by
   normal database queries.
+
+### Customer phone numbers
+
+Booking phone numbers must be Philippine mobile numbers. Customers may enter
+the local form `09XXXXXXXXX` or international form `+639XXXXXXXXX`; spaces,
+hyphens, and parentheses are accepted and normalized to the international
+form. The same rule is enforced for staff edits.
+
+## Public customer website
+
+The `public/` folder is the customer-facing Cloudflare Pages site. It is
+separate from the protected `admin/` staff site and does not expose the admin
+dashboard.
+
+The public pages use `window.ABCT_API_BASE_URL` to locate the backend. Local
+development defaults to `http://127.0.0.1:3101`; set that value before a Pages
+deployment so it points to the deployed API hostname.
+
+- `menu.html` loads available menu items from `GET /api/menu`.
+- `reservation.html` submits table and Function Hall requests to
+  `POST /api/bookings`.
+- Catering is contact-only: customers browse the menu and use the Facebook,
+  phone, or email links rather than creating an online catering booking.
+- Function Hall requests require at least four hours, charge ₱5,000 for every
+  hour beyond four, and require at least 30 guests or a ₱30,000 menu total.
+
+### Admin API URL
+
+The production admin Pages site must use the deployed HTTPS backend URL. Set
+`window.ABCT_API_BASE_URL` in `admin/js/api-config.js` after the backend is
+deployed, for example:
+
+```js
+window.ABCT_API_BASE_URL = "https://api.example.com";
+```
+
+Local admin development continues to use `http://127.0.0.1:3101`. The Pages
+site deliberately refuses to fall back to localhost, because a visitor's
+browser would interpret that as the visitor's own computer.
+
+### Test the public flow locally
+
+1. Start the backend from `backend` with `npm start` and confirm MongoDB is
+   reachable.
+2. Serve `public/` with a static server (for example, VS Code Live Server).
+3. Open `reservation.html`, submit a table request, then try a Function Hall
+   request with fewer than 30 guests and less than ₱30,000 to confirm the
+   validation message appears.

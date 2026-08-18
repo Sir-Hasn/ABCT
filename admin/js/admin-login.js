@@ -1,7 +1,7 @@
 // Keep this aligned with the backend PORT in the root .env file.
 // A deployed build can override it before this script loads with:
 // window.ABCT_API_BASE_URL = "https://api.example.com";
-const API_BASE_URL = window.ABCT_API_BASE_URL || "http://127.0.0.1:3101";
+const API_BASE_URL = window.ABCT_API_BASE_URL || "";
 const SESSION_KEY = "abct_admin_session";
 const form = document.querySelector("#login-form");
 const emailInput = document.querySelector("#email");
@@ -79,6 +79,14 @@ form?.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
   submitButton.setAttribute("aria-busy", "true");
   status.textContent = "Signing in…";
+
+  if (!API_BASE_URL) {
+    setSummary("The production API URL has not been configured yet.");
+    status.textContent = "Sign-in was not completed.";
+    submitButton.disabled = false;
+    submitButton.removeAttribute("aria-busy");
+    return;
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/admin/login`, {

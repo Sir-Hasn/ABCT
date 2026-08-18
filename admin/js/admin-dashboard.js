@@ -1,5 +1,5 @@
 const SESSION_KEY = "abct_admin_session";
-const API_BASE_URL = window.ABCT_API_BASE_URL || "http://127.0.0.1:3101";
+const API_BASE_URL = window.ABCT_API_BASE_URL || "";
 
 let sessionData;
 try { sessionData = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { sessionData = null; }
@@ -14,6 +14,18 @@ const pageSubtitle = document.querySelector("#page-subtitle");
 const dateChip = document.querySelector(".date-chip");
 const state = { view: "overview", bookingFilter: "all", bookingSearch: "", menuSearch: "", menuCategory: "", bookings: [], menuItems: [] };
 
+function updateDateChip() {
+  if (!dateChip) return;
+  dateChip.textContent = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Asia/Manila",
+  }).format(new Date());
+}
+updateDateChip();
+
 const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 const money = (value) => `₱${Number(value || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 })}`;
 const dateOnly = (value) => value ? new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" }) : "—";
@@ -26,6 +38,7 @@ function showToast(message, kind = "success") {
 }
 function signOut() { sessionStorage.removeItem(SESSION_KEY); window.location.replace("index.html"); }
 async function api(path, options = {}) {
+  if (!API_BASE_URL) throw new Error("The production API URL has not been configured yet.");
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData.token}`, ...(options.headers || {}) } });
   const body = await response.json().catch(() => ({}));
   if (response.status === 401) { signOut(); throw new Error("Your session has expired. Please sign in again."); }

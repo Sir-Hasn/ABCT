@@ -6,6 +6,7 @@
   "scripts": {
     "create-admin": "node scripts/create-admin.js",
     "start": "node server/server.js",
+    "test:syntax": "node --check server/server.js && node --check server/middleware/verifyCfAccess.js && node --check server/middleware/requireAuth.js && node --check server/routes/auth.js && node --check server/routes/bookings.js && node --check server/routes/menu.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

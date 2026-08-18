@@ -3,18 +3,29 @@ import jwksClient from "jwks-rsa";
 
 let client;
 
+function accessDomain() {
+  // The environment variable is intentionally stored as a hostname. This
+  // prevents accidental double schemes in the JWKS URL and issuer value.
+  return String(process.env.CF_ACCESS_DOMAIN || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/, "");
+}
+
 function cloudflareAccessEnabled() {
   return process.env.CF_ACCESS_ENABLED === "true";
 }
 
 function getClient() {
   if (!client) {
+    const domain = accessDomain();
+    if (!domain) throw new Error("CF_ACCESS_DOMAIN is required when Cloudflare Access is enabled.");
     client = jwksClient({
       cache: true,
       cacheMaxEntries: 5,
       cacheMaxAge: 60 * 60 * 1000,
       rateLimit: true,
-      jwksUri: `https://${process.env.CF_ACCESS_DOMAIN}/cdn-cgi/access/certs`,
+      jwksUri: `https://${domain}/cdn-cgi/access/certs`,
     });
   }
   return client;
@@ -41,7 +52,11 @@ function verifyCfAccess(request, response, next) {
   jwt.verify(
     assertion,
     getSigningKey,
-    { algorithms: ["RS256"], audience: process.env.CF_ACCESS_AUD },
+    {
+      algorithms: ["RS256"],
+      audience: process.env.CF_ACCESS_AUD,
+      issuer: `https://${accessDomain()}`,
+    },
     (error, decoded) => {
       if (error) {
         return response.status(403).json({ message: "Cloudflare Access authentication failed." });

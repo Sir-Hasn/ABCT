@@ -4,6 +4,7 @@ import { bookingLimiter } from "../middleware/rateLimiter.js";
 import { Bookings } from "../models/Booking.js";
 import { BookingSlot } from "../models/BookingSlot.js";
 import { Items } from "../models/MenuItem.js";
+import { normalizePhilippineMobile } from "../validation/phone.js";
 
 const FUNCTION_HALL_MIN_HOURS = 4;
 const FUNCTION_HALL_EXTENSION_FEE_PER_HOUR = 5000;
@@ -112,10 +113,15 @@ bookingsRouter.post("/", bookingLimiter, async (request, response, next) => {
       selectedMenuItems,
     } = request.body;
 
+    const normalizedPhone = normalizePhilippineMobile(userPhone);
+    if (!normalizedPhone) {
+      throw requestError("Phone number must be a Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).");
+    }
+
     const guestCount = Number(bookingGuestCount);
     let bookingData = {
       userFullName,
-      userPhone,
+      userPhone: normalizedPhone,
       userEmail,
       bookingType,
       bookingDate,
@@ -259,8 +265,9 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
     if (userFullName !== undefined && (typeof userFullName !== "string" || !userFullName.trim() || userFullName.length > 100)) {
       throw requestError("Guest name is required and must be at most 100 characters.", 400);
     }
-    if (userPhone !== undefined && (typeof userPhone !== "string" || !userPhone.trim() || userPhone.length > 30)) {
-      throw requestError("Phone number is required and must be at most 30 characters.", 400);
+    const normalizedPhone = userPhone === undefined ? undefined : normalizePhilippineMobile(userPhone);
+    if (userPhone !== undefined && !normalizedPhone) {
+      throw requestError("Phone number must be a Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).", 400);
     }
     if (userEmail !== undefined && (typeof userEmail !== "string" || !/^\S+@\S+\.\S+$/.test(userEmail.trim()))) {
       throw requestError("A valid email address is required.", 400);
@@ -313,7 +320,7 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
       }
 
       if (userFullName !== undefined) booking.userFullName = userFullName.trim();
-      if (userPhone !== undefined) booking.userPhone = userPhone.trim();
+      if (normalizedPhone !== undefined) booking.userPhone = normalizedPhone;
       if (userEmail !== undefined) booking.userEmail = userEmail.trim().toLowerCase();
       if (bookingGuestCount !== undefined) booking.bookingGuestCount = bookingGuestCount;
       if (bookingTimeSlot !== undefined) booking.bookingTimeSlot = bookingTimeSlot.trim();

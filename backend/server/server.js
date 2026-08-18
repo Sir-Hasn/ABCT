@@ -29,18 +29,25 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const app = express();
 
+// Render and Cloudflare sit in front of the application in production. Trust
+// the first proxy so rate limiting uses the originating client address.
+app.set("trust proxy", 1);
+
 // --- MIdDLE WARE ---
 app.use(express.json({ limit: "100kb" }));
 
-const allowedOrigins = [
-    'http://127.0.0.1:5500',
-    'http://localhost:5500',
-    'https://abct.pages.dev'
-];
+const configuredOrigins = (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+const defaultOrigins = process.env.NODE_ENV === "production"
+    ? ["https://abct.pages.dev"]
+    : ["http://127.0.0.1:5500", "http://localhost:5500", "https://abct.pages.dev"];
+const allowedOrigins = new Set([...defaultOrigins, ...configuredOrigins]);
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.has(origin)) {
             callback(null, true);
     } else {
         callback(new Error('Not allowed by CORS'));

@@ -1,1 +1,43 @@
-<!--Menu page — static structure, populated dynamically b-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Browse the current ABCT House menu." />
+    <title>Menu · ABCT House</title>
+    <link rel="stylesheet" href="css/output.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-ivory text-ink font-sans">
+    <div class="site-shell">
+      <header class="site-header" id="top">
+        <a class="brand" href="index.html"><span class="brand-mark">ABCT</span><span>HOUSE</span></a>
+        <button class="menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-expanded="false"><span></span><span></span></button>
+        <nav class="main-nav" id="main-nav" aria-label="Main navigation">
+          <a href="menu.html">Menu</a><a href="index.html#story">Our story</a><a href="index.html#visit">Visit us</a>
+          <a class="nav-reserve" href="reservation.html">Reserve a table <span>↗</span></a>
+        </nav>
+      </header>
+
+      <main class="menu-page">
+        <section class="page-heading">
+          <p class="eyebrow">From the kitchen / メニュー</p>
+          <h1>Good food,<br /><em>made to share.</em></h1>
+          <p>Our staff keep this menu current. Availability and prices shown here come directly from ABCT’s kitchen list.</p>
+        </section>
+        <section class="menu-browser" aria-label="ABCT menu">
+          <div class="filter-row" data-menu-filters role="tablist" aria-label="Menu categories"><button class="filter active" data-filter="all">All plates</button></div>
+          <div id="full-menu-grid" class="dish-grid public-menu-grid" data-menu-grid></div>
+        </section>
+        <section class="menu-catering-note"><div><p class="eyebrow">Catering</p><h2>Let’s plan<br /><em>together.</em></h2></div><p>For catering requests, please contact our team directly. We’ll help you choose a menu and plan the service around your event.</p><a class="button button-dark" href="reservation.html#catering">Catering contacts <span>↗</span></a></section>
+      </main>
+      <footer class="site-footer"><a class="brand" href="index.html"><span class="brand-mark">ABCT</span></a><p>Japanese-Inspired, Quality Driven.</p><div><a href="reservation.html">Reservations</a><a href="index.html#visit">Contact</a><a href="#top">Back to top ↑</a></div></footer>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script>window.ABCT_API_BASE_URL = window.ABCT_API_BASE_URL || "http://127.0.0.1:3101";</script>
+    <script src="js/main.js"></script>
+    <script src="js/menu.js"></script>
+  </body>
+</html>
