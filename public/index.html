@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ABCT — a modern Japanese restaurant that brings refined flavors and thoughtful craftsmanship into every dish. " />
+    <title>ABCT — Japanese-Inspired, Quality Driven.</title>
+    <link rel="icon" type="image/png" src="https://res.cloudinary.com/psg5prbp/image/upload/f_auto,q_auto/ABCT_LOGO" />
+    <link rel="stylesheet" href="/css/output.css" />
+    <link rel="stylesheet" href="/css/input.css" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { ink: '#171717', vermilion: '#b84c4f', sakura: '#f3d9ca', ivory: '#fbf6ef', mist: '#e9e5df' },
+            fontFamily: { display: ['Cormorant Garamond', 'serif'], sans: ['DM Sans', 'sans-serif'] }
+          }
+        }
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-ivory text-ink font-sans">
+    <div class="site-shell">
+      <header class="site-header" id="top">
+        <a class="brand" href="#top" aria-label="ABCT home"><span class="brand-mark" aria-label="ABCT logo">ABCT</span><span>HOUSE</span></a>
+        <button class="menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-expanded="false"><span></span><span></span></button>
+        <nav class="main-nav" id="main-nav" aria-label="Main navigation">
+          <a href="#menu">Menu</a><a href="#story">Our story</a><a href="#visit">Visit us</a>
+          <button class="nav-reserve" data-open-reservation>Reserve a table <span>↗</span></button>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero-section">
+          <div class="hero-art" aria-label="Illustrated sushi plate">
+            <div class="vertical-kanji" aria-hidden="true">日本料理</div>
+            <div class="plate plate-back"></div><div class="plate plate-front"></div>
+            <div class="sushi sushi-one"><i></i></div><div class="sushi sushi-two"><i></i></div><div class="sushi sushi-three"><i></i></div>
+            <span class="art-note">季節の味<br /><small>seasonal taste</small></span>
+          </div>
+          <div class="hero-copy">
+            <p class="eyebrow">Japanese dining / 東京からの inspiración</p>
+            <h1>A quiet place<br />for <em>good</em> food.</h1>
+            <p class="hero-intro"> Inspired by the artistry of Japanese cuisine, ABCT brings refined flavors and thoughtful craftsmanship into every dish.</p>
+            <div class="hero-actions"><a class="button button-dark" href="#menu">Explore the menu <span>↗</span></a><button class="play-link" data-open-story><span class="play-icon">▶</span> See our story</button></div>
+            <div class="hero-foot"><span>TUES-SUN</span><span>EASTRIDGE GOLFCLUB, BINANGONAN RIZAL</span><span>11:00 AM TO 9:00 PM</span></div>
+          </div>
+        </section>
+
+        <section class="marquee-strip" aria-label="Restaurant values"><span><b>本格的な</b><small>AUTHENTIC</small></span><span><b>上質</b><small>HIGH QUALITY</small></span><span><b>こだわり</b><small>COMMITMENT</small></span><span><b>おもてなし</b><small>JAPANESE HOSPITALITY</small></span></section>
+
+        <section class="story-section section-grid" id="story">
+          <div class="section-label"><span>01</span><span>Our approach</span></div>
+          <div class="story-heading"><p class="eyebrow">About ABCT Japanese Restaurant / 私たちについて</p><h2>Small details.<br /><em>Deep</em> flavour.</h2></div>
+          <div class="story-body"><p>At ABCT, we believe that food is more than just a meal- it is an experience, a memory, and a connection.
+  Inspired by the artistry of Japanese cuisine, ABCT brings refined flavors and thoughtful craftsmanship into every dish.
+   Each plate is carefully prepared with attention to detail, balance, and presentation.
+    With a focus on quality ingredients, proper technique, and consistency, we aim to deliver a dining experience that is both elevated and satisfying.</p><a class="text-link" href="#visit">Meet the team <span>↗</span></a></div>
+        </section>
+
+        <section class="menu-section" id="menu">
+          <div class="menu-heading"><div><p class="eyebrow">A taste of japanese culture / メニュー</p><h2>Made for sharing.</h2></div><button class="button button-outline" data-open-menu>View full menu <span>↗</span></button></div>
+          <div class="filter-row" role="tablist" aria-label="Menu categories"><button class="filter active" data-filter="all">All plates</button><button class="filter" data-filter="sushi">Sushi</button><button class="filter" data-filter="small">Small plates</button><button class="filter" data-filter="sweet">Sweet</button></div>
+          <div class="dish-grid">
+            <article class="dish-card" data-category="sushi"><div class="dish-image dish-sushi"><span>鮨</span><div class="dish-shape shape-fish"></div></div><div class="dish-meta"><div><h3>Chef's selection</h3><p>12 pieces · seasonal fish</p></div><strong>¥4,800</strong></div></article>
+            <article class="dish-card featured-dish" data-category="small"><div class="dish-image dish-ramen"><span>一椀</span><div class="bowl"></div><div class="steam"></div></div><div class="dish-meta"><div><h3>Smoked miso ramen</h3><p>Chashu · egg · spring onion</p></div><strong>¥1,600</strong></div></article>
+            <article class="dish-card" data-category="sweet"><div class="dish-image dish-sweet"><span>甘味</span><div class="mochi"></div></div><div class="dish-meta"><div><h3>Matcha mochi</h3><p>Hokkaido milk · black sesame</p></div><strong>¥720</strong></div></article>
+          </div>
+        </section>
+
+        <section class="visit-section" id="visit"><div class="visit-card"><div class="section-label light"><span>02</span><span>Find us</span></div><div><p class="eyebrow light-text">Come as you are / お待ちしています</p><h2>Dinner is<br /><em>better</em> together.</h2></div><div class="visit-details"><p>4-12-8 Jingumae<br />Shibuya-ku, Tokyo</p><p>Tue — Sun<br />12:00 — 23:00</p><button class="button button-light" data-open-reservation>Reserve a table <span>↗</span></button></div></div><div class="map-placeholder"><span class="map-pin">✦</span><p>Jingumae<br /><small>5 min from Meiji-jingumae station</small></p></div></section>
+
+        <section class="newsletter-section"><div><p class="eyebrow">From our kitchen / ニュース</p><h2>A little note<br />from ABCT.</h2></div><form class="newsletter-form" id="newsletter-form"><label for="email">Seasonal menus, studio notes, and the occasional good idea.</label><div class="input-row"><input id="email" type="email" placeholder="Your email address" required /><button class="button button-dark" type="submit" aria-label="Subscribe">Join us <span>↗</span></button></div><p class="form-note">No noise. Just the good stuff.</p></form></section>
+      </main>
+      <footer class="site-footer"><a class="brand" href="#top"><span class="brand-mark" aria-label="ABCT logo">ABCT</span></a><p>Japanese-Inspired, Quality Driven.</p><div><a href="#menu">Instagram</a><a href="#visit">Contact</a><a href="#top">Back to top ↑</a></div></footer>
+    </div>
+
+    <div class="modal-backdrop" id="modal-backdrop" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="Close dialog">×</button><p class="eyebrow">ABCT</p><h2 id="modal-title">Reserve your table.</h2><p class="modal-copy">Tell us when you would like to visit. This is a UI preview — no booking will be submitted.</p><form id="reservation-form" class="reservation-form"><label>Date<input type="date" required /></label><label>Guests<select required><option value="">Select guests</option><option>2 guests</option><option>3 guests</option><option>4 guests</option><option>5+ guests</option></select></label><button class="button button-dark" type="submit">Check availability <span>↗</span></button></form></div></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="\js\main.js"></script>
+  </body>
+</html>
