@@ -5,31 +5,90 @@
 * server
  */
 import mongoose from 'mongoose';
-import { User } from './models/Staff.js';
-import { Items } from './models/MenuItem.js';
-import { Bookings } from './models/Booking.js';
 import { authRouter } from './routes/auth.js';
-import { rateLimiter } from './middleware/rateLimiter.js';
+import { adminBookingsRouter, bookingsRouter } from './routes/bookings.js';
+import { requireAuth } from './middleware/requireAuth.js';
+import { verifyCfAccess } from './middleware/verifyCfAccess.js';
+import { adminMenuRouter, menuRouter } from './routes/menu.js';
 import cors from "cors";
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
-import dns from "node:dns";
 import { fileURLToPath } from "url";
-dotenv.config();
-
-// Prefer IPv4 to avoid IPv6-only route failures (ENETUNREACH) on some cloud hosts.
-dns.setDefaultResultOrder("ipv4first");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create the Express app.
-const app = express();
-app.use(express.json({ limit: "15mb" }));
-app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+// The project's environment file is at the repository root, two levels above
+// this entry point (backend/server/server.js).
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-if (!process.env.MONGODB_URI || !process.env.JWT_SECRET || !process.env.CF_ACCESS_AUD || !process.env.CF_ACCESS_DOMAIN) {
-  console.error("Error: One or more required environment variables are not defined.");
-  process.exit(1);
+//const express = require('express');
+//const cors = require('cors');
+//const connectToMongoDB = require('./connectToMongoDB');
+
+const app = express();
+
+// --- MIdDLE WARE ---
+app.use(express.json({ limit: "100kb" }));
+
+const allowedOrigins = [
+    'http://127.0.0.1:5500',
+    'http://localhost:5500'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+    } else {
+        callback(new Error('Not allowed by CORS'));
+    }
 }
+}));
+
+//--- ROUTES ---
+app.use('/api/bookings', bookingsRouter);
+app.use('/api/menu', menuRouter);
+app.use('/api/admin', verifyCfAccess);
+app.use('/api/admin', authRouter);
+app.use('/api/admin/bookings', requireAuth, adminBookingsRouter);
+app.use('/api/admin/menu', requireAuth, adminMenuRouter);
+
+app.use((error, _request, response, _next) => {
+    console.error(error);
+    response.status(500).json({ message: 'An unexpected server error occurred.' });
+});
+
+const PORT = process.env.PORT || 5500;
+
+async function startServer() {
+    const productionMissingCloudflareConfig = process.env.NODE_ENV === 'production' && (
+        process.env.CF_ACCESS_ENABLED !== 'true' ||
+        !process.env.CF_ACCESS_AUD ||
+        !process.env.CF_ACCESS_DOMAIN
+    );
+    if (!process.env.MONGODB_URI || !process.env.JWT_SECRET || productionMissingCloudflareConfig) {
+        throw new Error('MONGODB_URI and JWT_SECRET are required. Production also requires CF_ACCESS_ENABLED=true, CF_ACCESS_AUD, and CF_ACCESS_DOMAIN.');
+    }
+
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('Connected to MongoDB');
+
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        console.log(`
+╔════════════════════════════════════════╗
+║   ABCT Web                             ║
+║   By shanricz                          ║
+║   Version: 1.0.0                       ║
+║   License: MIT                         ║
+╚════════════════════════════════════════╝
+`);
+  });
+}
+
+startServer().catch((err) => {
+    console.error('Could not start server:', err.message);
+    process.exit(1);
+});
