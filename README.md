@@ -86,6 +86,34 @@ rules, production protections, and launch checklist. The backend test command
 uses an isolated in-memory model setup and does not read or modify the real
 MongoDB database.
 
+Run the optional real-database suite against a disposable MongoDB replica set
+with `MONGODB_TEST_URI=... npm run test:integration`. The repository includes
+`backend/docker-compose.integration.yml` for a local replica set:
+
+```powershell
+docker compose -f docker-compose.integration.yml up -d
+$env:MONGODB_TEST_URI = "mongodb://127.0.0.1:27018/abct_test?replicaSet=rs0"
+npm run test:integration
+docker compose -f docker-compose.integration.yml down -v
+```
+
+The suite clears only the test database's booking, slot, and `INTEGRATION-*`
+menu records. A standalone MongoDB server is not sufficient because Function
+Hall conflict protection uses transactions.
+
+For a deployed smoke test, set `SMOKE_BASE_URL` to the HTTPS Pages URL and run
+`npm run test:remote` from `backend`. The script checks liveness, readiness,
+public menu retrieval, and the same-origin Pages proxy. Set
+`SMOKE_BACKEND_URL=https://...onrender.com` as well to verify the direct
+backend CORS response. Optional short-lived admin credentials can be supplied with the variables documented in
+`scripts/smoke-production.js`; never commit those values.
+
+The backend exposes `/healthz` for process liveness and `/readyz` for MongoDB
+readiness. The same checks are available through the Pages proxy as
+`/api/healthz` and `/api/readyz`. Configure the hosting provider to use
+`/readyz` on Render for traffic health checks and alert on non-2xx responses or
+`request_error` log events.
+
 ### Protected admin booking endpoints
 
 `GET /api/admin/bookings` returns up to 100 bookings. Add `?status=pending`,

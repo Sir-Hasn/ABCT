@@ -308,6 +308,18 @@ test("rejects invalid phone numbers and enforces table menu notice and deposit",
   });
   assert.equal(invalidPhone.response.status, 422);
 
+  const pastDate = await request("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify({ userFullName: "Past Guest", userPhone: "09171234567", userEmail: "past@example.com", bookingType: "table", bookingDate: dateOffset(-1), bookingTimeSlot: "18:00", bookingGuestCount: 2 }),
+  });
+  assert.equal(pastDate.response.status, 422);
+
+  const invalidTime = await request("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify({ userFullName: "Bad Time Guest", userPhone: "09171234567", userEmail: "badtime@example.com", bookingType: "table", bookingDate: dateOffset(5), bookingTimeSlot: "dinner", bookingGuestCount: 2 }),
+  });
+  assert.equal(invalidTime.response.status, 400);
+
   const tooSoon = await request("/api/bookings", {
     method: "POST",
     body: JSON.stringify({ userFullName: "Test Guest", userPhone: "09171234567", userEmail: "guest@example.com", bookingType: "table", bookingDate: dateOffset(1), bookingTimeSlot: "18:00", bookingGuestCount: 2, selectedMenuItems: [{ itemId: testMenuId.toString(), quantity: 2 }] }),
@@ -348,6 +360,20 @@ test("enforces Function Hall duration, extension fee, slot conflicts, and expira
 
   const token = await staffToken();
   const booking = state.bookings[0];
+  const invalidEdit = await request(`/api/admin/bookings/${booking._id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ bookingGuestCount: 1 }),
+  });
+  assert.equal(invalidEdit.response.status, 422);
+
+  const pastEdit = await request(`/api/admin/bookings/${booking._id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ bookingDate: dateOffset(-1) }),
+  });
+  assert.equal(pastEdit.response.status, 422);
+
   const expired = await request(`/api/admin/bookings/${booking._id}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },

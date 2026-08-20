@@ -43,3 +43,13 @@
 Before production launch, verify HTTPS, MongoDB network restrictions, backups,
 Cloudflare Access policy membership, CORS origins, rotated credentials, and
 that logs do not contain passwords, JWTs, or unnecessary customer details.
+
+Use `/healthz` as the process liveness check and `/readyz` as the MongoDB
+readiness check. Alert on readiness failures and structured `request_error`
+events from the backend logs. Production rate limits use MongoDB counters so
+limits remain effective across multiple backend processes; local development
+and unit tests use the in-memory fallback.
+
+Run `npm run test:integration` with a disposable MongoDB replica-set URI before
+launching. Run `npm run test:remote` with `SMOKE_BASE_URL` after each deployment
+to verify the Pages proxy, CORS, public menu, and health endpoints.

@@ -13,6 +13,7 @@ const FUNCTION_HALL_MIN_FOOD_TOTAL = 30000;
 const TABLE_MENU_MIN_NOTICE_DAYS = 3;
 const TABLE_MENU_DEPOSIT_RATE = 0.2;
 const HALL_TIME_PATTERN = /^([01]\d|2[0-3]):00$/;
+const TABLE_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const bookingsRouter = Router();
 const adminBookingsRouter = Router();
 const BOOKING_STATUSES = ["pending", "confirmed", "expired", "cancelled"];
@@ -28,6 +29,12 @@ function isValidDateOnly(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isTodayOrFutureDate(value) {
+  const requestedDate = dateTextInManila(value);
+  const today = dateTextInManila(new Date());
+  return isValidDateOnly(requestedDate) && requestedDate >= today;
 }
 
 function validatePublicBookingInput(input) {
@@ -64,11 +71,14 @@ function validatePublicBookingInput(input) {
   if (!isValidDateOnly(bookingDate)) {
     throw requestError("Booking date must use a valid YYYY-MM-DD date.", 400);
   }
+  if (!isTodayOrFutureDate(bookingDate)) {
+    throw requestError("Booking date cannot be in the past.", 422);
+  }
   if (!Number.isInteger(bookingGuestCount) || bookingGuestCount < 1 || bookingGuestCount > 500) {
     throw requestError("Guest count must be a whole number from 1 to 500.", 400);
   }
-  if (bookingType !== "function-hall" && typeof bookingTimeSlot !== "string") {
-    throw requestError("Booking time slot must be text.", 400);
+  if (bookingType !== "function-hall" && (typeof bookingTimeSlot !== "string" || !TABLE_TIME_PATTERN.test(bookingTimeSlot))) {
+    throw requestError("Booking time slot must use a valid HH:MM time.", 400);
   }
   for (const time of [bookingStartTime, bookingEndTime]) {
     if (time !== undefined && typeof time !== "string") {
@@ -85,7 +95,7 @@ function validatePublicBookingInput(input) {
 
 function parseFunctionHallSchedule(bookingDate, bookingStartTime, bookingEndTime) {
   const dateText = typeof bookingDate === "string" ? bookingDate.slice(0, 10) : "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || !HALL_TIME_PATTERN.test(bookingStartTime) || !HALL_TIME_PATTERN.test(bookingEndTime)) {
+  if (!isValidDateOnly(dateText) || !isTodayOrFutureDate(dateText) || !HALL_TIME_PATTERN.test(bookingStartTime) || !HALL_TIME_PATTERN.test(bookingEndTime)) {
     throw requestError("Function Hall date and times must use YYYY-MM-DD and whole-hour HH:00 values.");
   }
 
@@ -327,6 +337,10 @@ adminBookingsRouter.get("/", async (request, response, next) => {
 adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
   let session;
   try {
+    if (!request.body || typeof request.body !== "object" || Array.isArray(request.body)) {
+      throw requestError("Request body must be a JSON object.", 400);
+    }
+
     const { bookingId } = request.params;
     const {
       bookingStatus,
@@ -364,11 +378,11 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
     if (userEmail !== undefined && (typeof userEmail !== "string" || !/^\S+@\S+\.\S+$/.test(userEmail.trim()))) {
       throw requestError("A valid email address is required.", 400);
     }
-    if (bookingDate !== undefined && (typeof bookingDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate))) {
-      throw requestError("Booking date must use YYYY-MM-DD format.", 400);
+    if (bookingDate !== undefined && !isValidDateOnly(bookingDate)) {
+      throw requestError("Booking date must use a valid YYYY-MM-DD date.", 400);
     }
-    if (bookingTimeSlot !== undefined && typeof bookingTimeSlot !== "string") {
-      throw requestError("Booking time slot must be text.", 400);
+    if (bookingTimeSlot !== undefined && (typeof bookingTimeSlot !== "string" || !TABLE_TIME_PATTERN.test(bookingTimeSlot))) {
+      throw requestError("Booking time slot must use a valid HH:MM time.", 400);
     }
     if (bookingGuestCount !== undefined && (!Number.isInteger(bookingGuestCount) || bookingGuestCount < 1 || bookingGuestCount > 500)) {
       throw requestError("Guest count must be a whole number from 1 to 500.", 400);
@@ -390,6 +404,34 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
       const booking = await Bookings.findById(bookingId).session(session);
       if (!booking) {
         throw requestError("Booking not found.", 404);
+      }
+
+      const nextGuestCount = bookingGuestCount ?? booking.bookingGuestCount;
+      const nextStatus = bookingStatus ?? booking.bookingStatus;
+      const terminalTarget = ["expired", "cancelled"].includes(nextStatus);
+      const nextDate = bookingDate ?? dateTextInManila(booking.bookingDate);
+      if ((!terminalTarget || bookingDate !== undefined) && !isTodayOrFutureDate(nextDate)) {
+        throw requestError("Booking date cannot be in the past.", 422);
+      }
+
+      if (booking.bookingType === "function-hall") {
+        if (scheduleWasEdited || !terminalTarget) {
+          const nextStart = bookingStartTime ?? booking.bookingStartTime;
+          const nextEnd = bookingEndTime ?? booking.bookingEndTime;
+          const { durationHours } = parseFunctionHallSchedule(nextDate, nextStart, nextEnd);
+          if (!terminalTarget && nextGuestCount < FUNCTION_HALL_MIN_GUESTS && Number(booking.foodOrderTotal || 0) < FUNCTION_HALL_MIN_FOOD_TOTAL) {
+            throw requestError("Function Hall bookings need at least 30 guests or a ₱30,000 menu order total.", 422);
+          }
+          if (scheduleWasEdited) {
+            booking.functionHallExtensionHours = durationHours - FUNCTION_HALL_MIN_HOURS;
+            booking.functionHallExtensionFee = (durationHours - FUNCTION_HALL_MIN_HOURS) * FUNCTION_HALL_EXTENSION_FEE_PER_HOUR;
+          }
+        }
+      } else {
+        const nextTimeSlot = bookingTimeSlot ?? booking.bookingTimeSlot;
+        if (typeof nextTimeSlot !== "string" || !TABLE_TIME_PATTERN.test(nextTimeSlot)) {
+          throw requestError("Booking time slot must use a valid HH:MM time.", 422);
+        }
       }
 
       if (bookingStatus && bookingStatus !== booking.bookingStatus) {
@@ -428,7 +470,9 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
         booking.functionHallExtensionHours = durationHours - FUNCTION_HALL_MIN_HOURS;
         booking.functionHallExtensionFee = (durationHours - FUNCTION_HALL_MIN_HOURS) * FUNCTION_HALL_EXTENSION_FEE_PER_HOUR;
         await BookingSlot.deleteMany({ bookingId: booking._id }).session(session);
-        await BookingSlot.insertMany(buildFunctionHallSlots(start, end, booking._id), { session, ordered: true });
+        if (!['expired', 'cancelled'].includes(nextStatus)) {
+          await BookingSlot.insertMany(buildFunctionHallSlots(start, end, booking._id), { session, ordered: true });
+        }
       }
 
       updatedBooking = await booking.save({ session });

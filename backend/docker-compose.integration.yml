@@ -1,0 +1,29 @@
+services:
+  mongo-rs:
+    image: mongo:8
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27018:27017"
+    volumes:
+      - abct-integration-mongo:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand({ ping: 1 }).ok\""]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  mongo-rs-init:
+    image: mongo:8
+    depends_on:
+      mongo-rs:
+        condition: service_healthy
+    restart: "no"
+    entrypoint:
+      - mongosh
+      - --host
+      - mongo-rs:27017
+      - --eval
+      - "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo-rs:27017'}]})"
+
+volumes:
+  abct-integration-mongo:

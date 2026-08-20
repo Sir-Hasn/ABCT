@@ -11,19 +11,16 @@ import { requireAuth } from './middleware/requireAuth.js';
 import { verifyCfAccess } from './middleware/verifyCfAccess.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
 import { adminMenuRouter, menuRouter } from './routes/menu.js';
+import './config/env.js';
 import cors from "cors";
 import express from "express";
-import dotenv from "dotenv";
 import mongoSanitize from "express-mongo-sanitize";
+import { randomUUID } from "node:crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// The project's environment file is at the repository root, two levels above
-// this entry point (backend/server/server.js).
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 //const express = require('express');
 //const cors = require('cors');
@@ -51,6 +48,28 @@ app.use((request, _response, next) => {
 });
 app.use(securityHeaders);
 
+// Keep operational logs useful without writing customer names, emails,
+// booking notes, passwords, or tokens to the log stream.
+app.use((request, response, next) => {
+    const requestId = randomUUID();
+    const startedAt = process.hrtime.bigint();
+    request.requestId = requestId;
+    response.setHeader("X-Request-ID", requestId);
+    response.on("finish", () => {
+        if (/^\/api\/(healthz|readyz)$/.test(request.path) || /^(\/healthz|\/readyz)$/.test(request.path)) return;
+        const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+        console.log(JSON.stringify({
+            event: "http_request",
+            requestId,
+            method: request.method,
+            path: request.path,
+            status: response.statusCode,
+            durationMs: Math.round(durationMs * 100) / 100,
+        }));
+    });
+    next();
+});
+
 const configuredOrigins = (process.env.CORS_ORIGINS || "")
     .split(",")
     .map((origin) => origin.trim())
@@ -70,6 +89,18 @@ app.use(cors({
 }
 }));
 
+// Liveness is intentionally independent of MongoDB so the host can tell
+// whether the Node process is running. Readiness is used for traffic routing
+// and confirms that the database connection is usable.
+app.get(["/healthz", "/api/healthz"], (_request, response) => {
+    response.status(200).json({ status: "ok" });
+});
+
+app.get(["/readyz", "/api/readyz"], (_request, response) => {
+    const ready = mongoose.connection.readyState === 1;
+    response.status(ready ? 200 : 503).json({ status: ready ? "ready" : "not_ready" });
+});
+
 //--- ROUTES ---
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/menu', menuRouter);
@@ -78,8 +109,14 @@ app.use('/api/admin', authRouter);
 app.use('/api/admin/bookings', requireAuth, adminBookingsRouter);
 app.use('/api/admin/menu', requireAuth, adminMenuRouter);
 
-app.use((error, _request, response, _next) => {
-    console.error(error);
+app.use((error, request, response, _next) => {
+    console.error(JSON.stringify({
+        event: "request_error",
+        requestId: request.requestId,
+        method: request.method,
+        path: request.path,
+        message: error.message,
+    }));
     if (error.message === "Not allowed by CORS") {
         return response.status(403).json({ message: "Origin is not allowed." });
     }
@@ -114,7 +151,11 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-    console.error('Could not start server:', err.message);
-    process.exit(1);
-});
+export { app, startServer };
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+    startServer().catch((err) => {
+        console.error('Could not start server:', err.message);
+        process.exit(1);
+    });
+}
