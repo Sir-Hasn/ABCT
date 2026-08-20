@@ -60,10 +60,40 @@
                 </div>
               </fieldset>
 
+              <fieldset class="form-section" data-table-menu-fields>
+                <legend>4. Optional menu order</legend>
+                <p class="field-note">Add menu items to your table reservation if you wish. Menu orders require at least 3 days’ notice and a 20% deposit, handled directly with ABCT staff off platform.</p>
+                <div class="menu-picker" data-menu-picker="table">
+                  <button class="button button-outline menu-picker-toggle" type="button" data-menu-toggle aria-expanded="false">Add menu items <span>+</span></button>
+                  <div class="menu-picker-browser" data-menu-browser hidden>
+                    <div class="menu-filter-grid">
+                      <label class="field"><span>Search menu</span><input type="search" data-menu-search placeholder="Search by item name" autocomplete="off" /></label>
+                      <label class="field"><span>Category</span><select data-menu-category><option value="">All categories</option></select></label>
+                    </div>
+                    <p class="menu-result-count" data-menu-count></p>
+                    <div class="order-list" data-menu-results></div>
+                  </div>
+                  <div class="selected-order" data-menu-selected></div>
+                </div>
+                <div id="table-summary" class="booking-summary"></div>
+              </fieldset>
+
               <fieldset class="form-section" data-hall-fields hidden>
                 <legend>4. Add menu orders</legend>
                 <p class="field-note">The first 4 hours are included. Additional hours cost ₱5,000 each. Your booking must have at least 30 guests or a ₱30,000 menu order total.</p>
-                <div id="hall-menu" class="order-list"></div>
+                <div class="menu-picker" data-menu-picker="function-hall">
+                  <button class="button button-outline menu-picker-toggle" type="button" data-menu-toggle aria-expanded="false">Add menu items <span>+</span></button>
+                  <div class="menu-picker-browser" data-menu-browser hidden>
+                    <div class="menu-filter-grid">
+                      <label class="field"><span>Search menu</span><input type="search" data-menu-search placeholder="Search by item name" autocomplete="off" /></label>
+                      <label class="field"><span>Category</span><select data-menu-category><option value="">All categories</option></select>
+                      </label>
+                    </div>
+                    <p class="menu-result-count" data-menu-count></p>
+                    <div class="order-list" data-menu-results></div>
+                  </div>
+                  <div class="selected-order" data-menu-selected></div>
+                </div>
                 <div id="hall-summary" class="booking-summary"></div>
               </fieldset>
 
