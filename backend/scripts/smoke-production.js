@@ -1,6 +1,6 @@
 /*
  * Read-only production smoke checks. Run with:
- *   SMOKE_BASE_URL=https://abct.pages.dev npm run test:remote
+ *   SMOKE_BASE_URL=https://abct-public.pages.dev npm run test:remote
  *   SMOKE_BACKEND_URL=https://abct.onrender.com  # optional direct CORS check
  *
  * Optional protected-admin check variables:
@@ -10,7 +10,7 @@
  */
 
 const baseUrl = String(process.env.SMOKE_BASE_URL || "").trim().replace(/\/+$/, "");
-const origin = String(process.env.SMOKE_ORIGIN || "https://abct.pages.dev").trim();
+const origin = String(process.env.SMOKE_ORIGIN || "https://abct-public.pages.dev").trim();
 
 if (!baseUrl) {
   console.error("SMOKE_BASE_URL is required.");

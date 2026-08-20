@@ -25,6 +25,30 @@ const HOP_BY_HOP_HEADERS = new Set([
   "x-forwarded-proto",
 ]);
 
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Content-Security-Policy": "default-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+};
+
+function withSecurityHeaders(response) {
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    if (!headers.has(name)) headers.set(name, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function backendUrlFor(request, backendOrigin) {
   const origin = String(backendOrigin || "").trim().replace(/\/+$/, "");
   if (!origin) throw new Error("BACKEND_URL is not configured for the Pages API proxy.");
@@ -51,18 +75,19 @@ export async function onRequest(context) {
   try {
     targetUrl = backendUrlFor(context.request, context.env.BACKEND_URL);
   } catch (error) {
-    return Response.json({ message: error.message }, { status: 500 });
+    return withSecurityHeaders(Response.json({ message: error.message }, { status: 500 }));
   }
 
   const method = context.request.method.toUpperCase();
   try {
-    return await fetch(new Request(targetUrl, {
+    const response = await fetch(new Request(targetUrl, {
       method,
       headers: proxyHeaders(context.request),
       body: method === "GET" || method === "HEAD" ? undefined : context.request.body,
       redirect: "manual",
     }));
+    return withSecurityHeaders(response);
   } catch {
-    return Response.json({ message: "The API service is temporarily unavailable." }, { status: 502 });
+    return withSecurityHeaders(Response.json({ message: "The API service is temporarily unavailable." }, { status: 502 }));
   }
 }

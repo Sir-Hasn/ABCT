@@ -156,7 +156,7 @@ app.use((request, _response, next) => {
   next();
 });
 app.use(securityHeaders);
-const allowedOrigins = new Set(["http://localhost:5500", "https://abct.pages.dev"]);
+const allowedOrigins = new Set(["http://localhost:5500", "https://abct-public.pages.dev"]);
 app.use(cors({ origin(origin, callback) { callback(!origin || allowedOrigins.has(origin) ? null : new Error("Not allowed by CORS"), !origin || allowedOrigins.has(origin)); } }));
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/menu", menuRouter);

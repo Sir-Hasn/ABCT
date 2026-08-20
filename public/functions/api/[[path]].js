@@ -1,7 +1,7 @@
 /**
  * Same-origin API proxy for the Cloudflare Pages site.
  *
- * The browser calls https://abct.pages.dev/api/* so Cloudflare Access can
+ * The browser calls https://abct-public.pages.dev/api/* so the Pages proxy can
  * authenticate /api/admin/* before this function forwards the request to the
  * Render origin. The backend validates the signed
  * Cf-Access-Jwt-Assertion header itself; this function never trusts a client
@@ -26,6 +26,30 @@ const HOP_BY_HOP_HEADERS = new Set([
   "x-forwarded-host",
   "x-forwarded-proto",
 ]);
+
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Content-Security-Policy": "default-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+};
+
+function withSecurityHeaders(response) {
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    if (!headers.has(name)) headers.set(name, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 function backendUrlFor(request, backendOrigin) {
   const origin = String(backendOrigin || "").trim().replace(/\/+$/, "");
@@ -68,23 +92,24 @@ export async function onRequest(context) {
   try {
     targetUrl = backendUrlFor(context.request, context.env.BACKEND_URL);
   } catch (error) {
-    return Response.json({ message: error.message }, { status: 500 });
+    return withSecurityHeaders(Response.json({ message: error.message }, { status: 500 }));
   }
 
   const method = context.request.method.toUpperCase();
   const hasBody = method !== "GET" && method !== "HEAD";
 
   try {
-    return await fetch(new Request(targetUrl, {
+    const response = await fetch(new Request(targetUrl, {
       method,
       headers: proxyHeaders(context.request),
       body: hasBody ? context.request.body : undefined,
       redirect: "manual",
     }));
+    return withSecurityHeaders(response);
   } catch {
-    return Response.json(
+    return withSecurityHeaders(Response.json(
       { message: "The API service is temporarily unavailable." },
       { status: 502 },
-    );
+    ));
   }
 }

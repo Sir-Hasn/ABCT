@@ -53,3 +53,35 @@ and unit tests use the in-memory fallback.
 Run `npm run test:integration` with a disposable MongoDB replica-set URI before
 launching. Run `npm run test:remote` with `SMOKE_BASE_URL` after each deployment
 to verify the Pages proxy, CORS, public menu, and health endpoints.
+
+## MongoDB Atlas production controls
+
+These controls must be applied in the Atlas dashboard; they are not stored in
+the repository:
+
+1. **Backups.** For a dedicated M10+ cluster, enable Cloud Backup and
+   Continuous Cloud Backup. Use a daily snapshot policy with a documented
+   retention period and a point-in-time restore window appropriate for the
+   business. Perform a restore test against a separate target cluster before
+   launch. Free/shared tiers may not provide the same backup features; use an
+   encrypted, scheduled `mongodump` to a separate protected store if Atlas
+   Cloud Backup is unavailable.
+2. **Network restrictions.** In Atlas **Security → Network Access**, remove
+   `0.0.0.0/0`. From the Render service's **Connect → Outbound** panel, add
+   the service's outbound CIDR ranges to Atlas. Use Render dedicated outbound
+   IPs if a narrow, stable allowlist is required. Keep a developer IP entry
+   temporary and time-limited.
+3. **Least-privilege application user.** Create a dedicated production
+   database user for the backend with only the built-in `readWrite` role on
+   the application's database. Do not assign `atlasAdmin`, `dbAdmin`,
+   `userAdmin`, `root`, or organization-level roles to the application user.
+   Keep migration/administration credentials separate and out of the Render
+   runtime. Confirm the database name in `MONGODB_URI` before changing it so
+   an existing dataset is not accidentally bypassed.
+4. **Rotation and review.** Store the user credentials only in Render's
+   encrypted environment variables, rotate them after exposure or staff
+   changes, and review Atlas Activity Feed entries for user, network, and
+   backup-policy changes.
+
+The Atlas guidance follows MongoDB's recommendations for backup policy,
+network access lists, and least-privilege database roles.

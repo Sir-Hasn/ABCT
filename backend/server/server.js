@@ -75,8 +75,8 @@ const configuredOrigins = (process.env.CORS_ORIGINS || "")
     .map((origin) => origin.trim())
     .filter(Boolean);
 const defaultOrigins = process.env.NODE_ENV === "production"
-    ? ["https://abct.pages.dev"]
-    : ["http://127.0.0.1:5500", "http://localhost:5500", "https://abct.pages.dev"];
+    ? ["https://abct-public.pages.dev"]
+    : ["http://127.0.0.1:5500", "http://localhost:5500", "https://abct-public.pages.dev"];
 const allowedOrigins = new Set([...defaultOrigins, ...configuredOrigins]);
 
 app.use(cors({
