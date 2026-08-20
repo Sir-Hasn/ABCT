@@ -97,7 +97,7 @@ adminMenuRouter.post("/", async (request, response, next) => {
 adminMenuRouter.patch("/:itemId", async (request, response, next) => {
   try {
     validateItemId(request.params.itemId);
-    const allowedFields = ["itemName", "itemDescription", "itemPrice", "itemCategory", "itemPhotoUrl"];
+    const allowedFields = ["itemNumber", "itemName", "itemDescription", "itemPrice", "itemCategory", "itemPhotoUrl"];
     const updates = Object.fromEntries(
       allowedFields
         .filter((field) => request.body[field] !== undefined)
@@ -117,6 +117,9 @@ adminMenuRouter.patch("/:itemId", async (request, response, next) => {
     }
     response.status(200).json({ message: "Menu item updated.", item });
   } catch (error) {
+    if (error.code === 11000) {
+      return response.status(409).json({ message: "That item number is already in use." });
+    }
     if (error.status) {
       return response.status(error.status).json({ message: error.message });
     }

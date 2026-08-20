@@ -56,6 +56,14 @@ the booking. It atomically reserves each requested Function Hall hour, so
 overlapping Function Hall requests receive `409 Conflict`. Table reservations
 do not reserve time slots.
 
+### Reservation menu picker
+
+The public reservation form keeps the large menu collapsed until the customer
+chooses `Add menu items`. Customers can search item names, filter by category,
+set quantities, and review a separate selected-order summary. The picker is
+reused for table and Function Hall requests, while the server-side price lookup
+remains the source of truth.
+
 ### Staff login
 
 `POST /api/admin/login`
@@ -70,6 +78,13 @@ Authorization: Bearer <token>
 
 Login attempts are limited to 5 per 15 minutes. The API deliberately gives the
 same response for an unknown email and an incorrect password.
+
+### Security and privacy
+
+See [SECURITY.md](SECURITY.md) for the data-handling policy, secret-handling
+rules, production protections, and launch checklist. The backend test command
+uses an isolated in-memory model setup and does not read or modify the real
+MongoDB database.
 
 ### Protected admin booking endpoints
 
@@ -89,7 +104,8 @@ uncompleted requests as `expired`. Setting a Function Hall booking to
 `itemDescription`, `itemPrice`, `itemCategory`, and `itemNumber`. Optional
 fields are `itemPhotoUrl` and `itemAvailable`.
 
-`PATCH /api/admin/menu/:itemId` updates item details, and
+`PATCH /api/admin/menu/:itemId` updates item details, including the editable
+unique `itemNumber`, and
 `PATCH /api/admin/menu/:itemId/availability` accepts `{ "itemAvailable": true }`
 or `false`. A photo URL must be an HTTPS Cloudinary delivery URL. Staff upload
 the image in Cloudinary first; this API stores only the resulting URL.
@@ -152,6 +168,10 @@ deployment so it points to the deployed API hostname.
   phone, or email links rather than creating an online catering booking.
 - Function Hall requests require at least four hours, charge ₱5,000 for every
   hour beyond four, and require at least 30 guests or a ₱30,000 menu total.
+- Table reservations may optionally include menu items. A table reservation
+  with menu items must be requested at least 3 days ahead and shows a required
+  deposit equal to 20% of the menu total. Payment happens off platform and
+  staff record the deposit status manually.
 
 ### Admin API URL
 

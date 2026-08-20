@@ -8,7 +8,7 @@ const menuItemSchema = new mongoose.Schema(
     itemCategory: { type: String, required: true, trim: true, maxlength: 60 },
     itemPhotoUrl: { type: String, trim: true, default: "" },
     itemAvailable: { type: Boolean, default: true },
-    itemNumber: { type: String, required: true, trim: true, unique: true, immutable: true },
+    itemNumber: { type: String, required: true, trim: true, unique: true, maxlength: 30 },
   },
   { timestamps: true }
 );

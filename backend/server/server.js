@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth.js';
 import { adminBookingsRouter, bookingsRouter } from './routes/bookings.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { verifyCfAccess } from './middleware/verifyCfAccess.js';
+import { securityHeaders } from './middleware/securityHeaders.js';
 import { adminMenuRouter, menuRouter } from './routes/menu.js';
 import cors from "cors";
 import express from "express";
@@ -35,6 +36,7 @@ app.set("trust proxy", 1);
 
 // --- MIdDLE WARE ---
 app.use(express.json({ limit: "100kb" }));
+app.use(securityHeaders);
 
 const configuredOrigins = (process.env.CORS_ORIGINS || "")
     .split(",")
@@ -65,6 +67,9 @@ app.use('/api/admin/menu', requireAuth, adminMenuRouter);
 
 app.use((error, _request, response, _next) => {
     console.error(error);
+    if (error.message === "Not allowed by CORS") {
+        return response.status(403).json({ message: "Origin is not allowed." });
+    }
     response.status(500).json({ message: 'An unexpected server error occurred.' });
 });
 

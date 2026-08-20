@@ -10,6 +10,8 @@ const FUNCTION_HALL_MIN_HOURS = 4;
 const FUNCTION_HALL_EXTENSION_FEE_PER_HOUR = 5000;
 const FUNCTION_HALL_MIN_GUESTS = 30;
 const FUNCTION_HALL_MIN_FOOD_TOTAL = 30000;
+const TABLE_MENU_MIN_NOTICE_DAYS = 3;
+const TABLE_MENU_DEPOSIT_RATE = 0.2;
 const HALL_TIME_PATTERN = /^([01]\d|2[0-3]):00$/;
 const bookingsRouter = Router();
 const adminBookingsRouter = Router();
@@ -42,6 +44,22 @@ function parseFunctionHallSchedule(bookingDate, bookingStartTime, bookingEndTime
 function dateTextInManila(value) {
   if (typeof value === "string") return value.slice(0, 10);
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date(value));
+}
+
+function hasTableMenuNotice(bookingDate) {
+  const requestedDate = dateTextInManila(bookingDate);
+  const today = dateTextInManila(new Date());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) {
+    return false;
+  }
+
+  const requestedUtc = Date.parse(`${requestedDate}T00:00:00Z`);
+  const todayUtc = Date.parse(`${today}T00:00:00Z`);
+  return requestedUtc - todayUtc >= TABLE_MENU_MIN_NOTICE_DAYS * 24 * 60 * 60 * 1000;
+}
+
+function calculateTableMenuDeposit(foodOrderTotal) {
+  return Math.round(foodOrderTotal * TABLE_MENU_DEPOSIT_RATE * 100) / 100;
 }
 
 function buildFunctionHallSlots(start, end, bookingId) {
@@ -180,6 +198,17 @@ bookingsRouter.post("/", bookingLimiter, async (request, response, next) => {
       });
     }
 
+    const tableMenuOrder = await buildFoodOrder(selectedMenuItems);
+    if (tableMenuOrder.foodOrders.length > 0 && !hasTableMenuNotice(bookingDate)) {
+      throw requestError("Table bookings with menu orders must be requested at least 3 days in advance.");
+    }
+
+    bookingData = {
+      ...bookingData,
+      ...tableMenuOrder,
+      bookingDepositAmount: calculateTableMenuDeposit(tableMenuOrder.foodOrderTotal),
+    };
+
     const booking = await Bookings.create(bookingData);
     response.status(201).json({
       message: "Booking request received.",
@@ -187,6 +216,8 @@ bookingsRouter.post("/", bookingLimiter, async (request, response, next) => {
         bookingID: booking.bookingID,
         bookingStatus: booking.bookingStatus,
         bookingDepositStatus: booking.bookingDepositStatus,
+        foodOrderTotal: booking.foodOrderTotal,
+        bookingDepositAmount: booking.bookingDepositAmount,
       },
     });
   } catch (error) {

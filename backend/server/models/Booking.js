@@ -54,6 +54,7 @@ const bookingSchema = new mongoose.Schema(
     functionHallExtensionFee: { type: Number, min: 0, default: 0 },
     foodOrders: { type: [orderedItemSchema], default: [] },
     foodOrderTotal: { type: Number, min: 0, default: 0 },
+    bookingDepositAmount: { type: Number, min: 0, default: 0 },
     bookingStatus: {
       type: String,
       enum: ["pending", "confirmed", "expired", "cancelled"],
