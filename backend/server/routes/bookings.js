@@ -24,6 +24,65 @@ function requestError(message, status = 422) {
   return error;
 }
 
+function isValidDateOnly(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function validatePublicBookingInput(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw requestError("Request body must be a JSON object.", 400);
+  }
+
+  const {
+    userFullName,
+    userPhone,
+    userEmail,
+    bookingType,
+    bookingDate,
+    bookingTimeSlot,
+    bookingGuestCount,
+    bookingStartTime,
+    bookingEndTime,
+    bookingNotes,
+    selectedMenuItems,
+  } = input;
+
+  if (typeof userFullName !== "string" || !userFullName.trim() || userFullName.length > 100) {
+    throw requestError("Guest name is required and must be at most 100 characters.", 400);
+  }
+  if (typeof userPhone !== "string") {
+    throw requestError("Phone number must be text.", 400);
+  }
+  if (typeof userEmail !== "string" || !/^\S+@\S+\.\S+$/.test(userEmail.trim())) {
+    throw requestError("A valid email address is required.", 400);
+  }
+  if (!["table", "table-with-food", "function-hall"].includes(bookingType)) {
+    throw requestError("Booking type is invalid.", 400);
+  }
+  if (!isValidDateOnly(bookingDate)) {
+    throw requestError("Booking date must use a valid YYYY-MM-DD date.", 400);
+  }
+  if (!Number.isInteger(bookingGuestCount) || bookingGuestCount < 1 || bookingGuestCount > 500) {
+    throw requestError("Guest count must be a whole number from 1 to 500.", 400);
+  }
+  if (bookingType !== "function-hall" && typeof bookingTimeSlot !== "string") {
+    throw requestError("Booking time slot must be text.", 400);
+  }
+  for (const time of [bookingStartTime, bookingEndTime]) {
+    if (time !== undefined && typeof time !== "string") {
+      throw requestError("Booking times must be text.", 400);
+    }
+  }
+  if (bookingNotes !== undefined && (typeof bookingNotes !== "string" || bookingNotes.length > 1000)) {
+    throw requestError("Booking notes must be text with at most 1,000 characters.", 400);
+  }
+  if (selectedMenuItems !== undefined && !Array.isArray(selectedMenuItems)) {
+    throw requestError("selectedMenuItems must be an array.", 400);
+  }
+}
+
 function parseFunctionHallSchedule(bookingDate, bookingStartTime, bookingEndTime) {
   const dateText = typeof bookingDate === "string" ? bookingDate.slice(0, 10) : "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || !HALL_TIME_PATTERN.test(bookingStartTime) || !HALL_TIME_PATTERN.test(bookingEndTime)) {
@@ -117,6 +176,8 @@ async function buildFoodOrder(selectedMenuItems) {
 bookingsRouter.post("/", bookingLimiter, async (request, response, next) => {
   let session;
   try {
+    validatePublicBookingInput(request.body);
+
     const {
       userFullName,
       userPhone,

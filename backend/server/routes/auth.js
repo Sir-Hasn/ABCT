@@ -8,6 +8,10 @@ const authRouter = Router();
 
 authRouter.post("/login", loginLimiter, async (request, response, next) => {
   try {
+    if (!request.body || typeof request.body !== "object" || Array.isArray(request.body)) {
+      return response.status(400).json({ message: "Email and password are required." });
+    }
+
     const { userEmail, password } = request.body;
 
     if (typeof userEmail !== "string" || typeof password !== "string") {

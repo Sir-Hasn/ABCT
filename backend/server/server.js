@@ -14,6 +14,7 @@ import { adminMenuRouter, menuRouter } from './routes/menu.js';
 import cors from "cors";
 import express from "express";
 import dotenv from "dotenv";
+import mongoSanitize from "express-mongo-sanitize";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -36,6 +37,18 @@ app.set("trust proxy", 1);
 
 // --- MIdDLE WARE ---
 app.use(express.json({ limit: "100kb" }));
+// Remove MongoDB operator and dotted keys before any route can use input.
+// Sanitization is applied in place because Express 5 exposes req.query as a
+// read-only getter; the package's default middleware attempts to reassign it.
+// Route-level validation remains necessary because sanitization is not a
+// substitute for checking the expected type and shape of each field.
+app.use((request, _response, next) => {
+    for (const key of ["body", "params", "query"]) {
+        const target = request[key];
+        if (target && typeof target === "object") mongoSanitize.sanitize(target);
+    }
+    next();
+});
 app.use(securityHeaders);
 
 const configuredOrigins = (process.env.CORS_ORIGINS || "")

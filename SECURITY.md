@@ -31,6 +31,8 @@
 - Login and booking requests are rate-limited.
 - Request bodies have a 100 KB limit and booking/menu fields are validated on
   the server.
+- MongoDB operator and dotted-key input is sanitized in request bodies,
+  parameters, and queries before route handling.
 - CORS allows only configured browser origins.
 - Security headers are added to every response; private admin responses are
   marked `Cache-Control: no-store`.

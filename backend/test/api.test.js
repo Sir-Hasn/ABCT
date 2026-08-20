@@ -3,6 +3,7 @@ import { after, before, beforeEach, test } from "node:test";
 import bcrypt from "bcrypt";
 import cors from "cors";
 import express from "express";
+import mongoSanitize from "express-mongo-sanitize";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
@@ -147,6 +148,13 @@ function patchModels() {
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "100kb" }));
+app.use((request, _response, next) => {
+  for (const key of ["body", "params", "query"]) {
+    const target = request[key];
+    if (target && typeof target === "object") mongoSanitize.sanitize(target);
+  }
+  next();
+});
 app.use(securityHeaders);
 const allowedOrigins = new Set(["http://localhost:5500", "https://abct.pages.dev"]);
 app.use(cors({ origin(origin, callback) { callback(!origin || allowedOrigins.has(origin) ? null : new Error("Not allowed by CORS"), !origin || allowedOrigins.has(origin)); } }));
@@ -219,6 +227,28 @@ test("protects admin data and does not return staff passwords", async () => {
   assert.equal(wrongPassword.response.status, 401);
   assert.equal(unknownEmail.response.status, 401);
   assert.deepEqual(wrongPassword.body, unknownEmail.body);
+
+  const operatorLogin = await request("/api/admin/login", {
+    method: "POST",
+    body: JSON.stringify({ userEmail: { $ne: null }, password: PASSWORD }),
+  });
+  assert.equal(operatorLogin.response.status, 400);
+});
+
+test("rejects operator-shaped booking fields before persistence", async () => {
+  const operatorBooking = await request("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify({
+      userFullName: { $ne: null },
+      userPhone: "09171234567",
+      userEmail: "customer@example.com",
+      bookingType: "table",
+      bookingDate: dateOffset(3),
+      bookingTimeSlot: "18:00",
+      bookingGuestCount: 2,
+    }),
+  });
+  assert.equal(operatorBooking.response.status, 400);
 });
 
 test("returns only available public menu items and protects invalid image URLs", async () => {
