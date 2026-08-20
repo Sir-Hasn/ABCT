@@ -25,6 +25,9 @@
 ## Application protections
 
 - Admin routes require bearer authentication and production Cloudflare Access.
+- The Pages API proxy uses a fixed HTTPS backend origin, removes browser
+  cookies and spoofable forwarding headers, and forwards the signed Cloudflare
+  Access assertion for server-side verification.
 - Login and booking requests are rate-limited.
 - Request bodies have a 100 KB limit and booking/menu fields are validated on
   the server.

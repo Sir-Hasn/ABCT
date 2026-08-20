@@ -158,8 +158,8 @@ separate from the protected `admin/` staff site and does not expose the admin
 dashboard.
 
 The public pages use `window.ABCT_API_BASE_URL` to locate the backend. Local
-development defaults to `http://127.0.0.1:3101`; set that value before a Pages
-deployment so it points to the deployed API hostname.
+development defaults to `http://127.0.0.1:3101`; on the deployed Pages site,
+the value is the Pages origin so requests use the same-origin API proxy.
 
 - `menu.html` loads available menu items from `GET /api/menu`.
 - `reservation.html` submits table and Function Hall requests to
@@ -173,19 +173,36 @@ deployment so it points to the deployed API hostname.
   deposit equal to 20% of the menu total. Payment happens off platform and
   staff record the deposit status manually.
 
-### Admin API URL
+### Pages API proxy and Cloudflare Access
 
-The production admin Pages site must use the deployed HTTPS backend URL. Set
-`window.ABCT_API_BASE_URL` in `admin/js/api-config.js` after the backend is
-deployed, for example:
+The deployed admin and public Pages projects call their own same-origin
+`/api/*` path. The corresponding `functions/api/[[path]].js` forwards those
+requests to the Render backend after Cloudflare Access has processed the
+request. Configure each Pages project with this non-secret environment
+variable:
 
-```js
-window.ABCT_API_BASE_URL = "https://api.example.com";
+```text
+BACKEND_URL=https://abct.onrender.com
 ```
 
-Local admin development continues to use `http://127.0.0.1:3101`. The Pages
-site deliberately refuses to fall back to localhost, because a visitor's
-browser would interpret that as the visitor's own computer.
+If a Pages project uses `public/` or `admin/` as its project root, its local
+`functions/` directory is deployed with that site. Set `BACKEND_URL` in the
+Pages project that serves the admin site. Protect `/api/admin/*` with a
+Cloudflare Access Allow policy for staff email addresses. Leave `/api/menu`
+and `/api/bookings` public on the customer-facing site.
+
+Keep these Render variables enabled in production:
+
+```text
+CF_ACCESS_ENABLED=true
+CF_ACCESS_AUD=<Cloudflare Access application audience>
+CF_ACCESS_DOMAIN=<your-team>.cloudflareaccess.com
+```
+
+The backend validates the signed `Cf-Access-Jwt-Assertion` header; the Pages
+proxy does not trust or create user identity. Local admin development
+continues to use `http://127.0.0.1:3101`. The production admin API base uses
+the admin Pages origin in `admin/js/api-config.js`.
 
 ### Test the public flow locally
 

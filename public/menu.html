@@ -36,7 +36,7 @@
       <footer class="site-footer"><a class="brand" href="index.html"><span class="brand-mark">ABCT</span></a><p>Japanese-Inspired, Quality Driven.</p><div><a href="reservation.html">Reservations</a><a href="index.html#visit">Contact</a><a href="#top">Back to top ↑</a></div></footer>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script>window.ABCT_API_BASE_URL = window.ABCT_API_BASE_URL || "http://127.0.0.1:3101";</script>
+    <script>window.ABCT_API_BASE_URL = window.ABCT_API_BASE_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://127.0.0.1:3101" : window.location.origin);</script>
     <script src="js/main.js"></script>
     <script src="js/menu.js"></script>
   </body>
