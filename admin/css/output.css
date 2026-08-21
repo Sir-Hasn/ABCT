@@ -1385,6 +1385,37 @@ a {
     height: 42px;
   }
 }
+.attention-row {
+  width: 100%;
+  text-align: left;
+  grid-template-columns: minmax(0,1.4fr) minmax(110px,.8fr) auto;
+}
+.attention-row .person,.attention-row .booking-type {
+  min-width: 0;
+}
+.attention-row .person small,.attention-row .booking-type small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attention-row .status {
+  justify-self: end;
+}
+@media (max-width:760px) {
+  .attention-row {
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 8px 12px;
+  }
+  .attention-row .booking-type {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .attention-row .status {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+}
 @property --tw-blur {
   syntax: "*";
   inherits: false;
