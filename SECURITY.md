@@ -11,6 +11,10 @@
   hours.
 - Deposit status is a staff-recorded off-platform status. No payment card or
   gateway data is collected by this application.
+- The application has no automatic customer-data retention or deletion job.
+  Booking documents are not deleted automatically. Function Hall slot records
+  are technical availability records released when a booking becomes terminal;
+  they do not contain customer contact details.
 
 ## Secret handling
 

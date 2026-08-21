@@ -1,6 +1,6 @@
 services:
   mongo-rs:
-    image: mongo:8
+    image: mongo:8.0
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "27018:27017"
@@ -13,7 +13,7 @@ services:
       retries: 20
 
   mongo-rs-init:
-    image: mongo:8
+    image: mongo:8.0
     depends_on:
       mongo-rs:
         condition: service_healthy

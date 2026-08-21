@@ -8,4 +8,8 @@ components/ABCT_xtra-service.png
 components/Kumo House — Japanese Restaurant UI.md
 components/texzts.txt
 public/images
+*.archive.gz.abct.enc
+*.archive.gz.abct.enc.part
+.abct-secure-backups/
+abct-secure-backups/
 .env.example
