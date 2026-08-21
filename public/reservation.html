@@ -32,7 +32,7 @@
         <section class="booking-layout" aria-label="Reservation request">
           <div class="form-card">
             <div id="booking-message" class="form-message" role="alert" hidden></div>
-            <form id="booking-form" novalidate>
+            <form id="booking-form" autocomplete="off" novalidate>
               <fieldset class="form-section">
                 <legend>1. Reservation type</legend>
                 <label class="field"><span>What would you like to reserve?</span><select id="booking-type" name="bookingType" required><option value="table">Table</option><option value="function-hall">Function Hall</option></select></label>
@@ -41,9 +41,9 @@
               <fieldset class="form-section">
                 <legend>2. Your details</legend>
                 <div class="field-grid">
-                  <label class="field"><span>Full name</span><input name="userFullName" type="text" autocomplete="name" maxlength="100" required /></label>
-                  <label class="field"><span>Phone number</span><input name="userPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09XXXXXXXXX or +639XXXXXXXXX" pattern="(?:09[0-9]{9}|\+639[0-9]{9})" maxlength="30" title="Use 09XXXXXXXXX or +639XXXXXXXXX" required /></label>
-                  <label class="field field-wide"><span>Email address</span><input name="userEmail" type="email" autocomplete="email" maxlength="120" required /></label>
+                  <label class="field"><span>Full name</span><input name="userFullName" type="text" autocomplete="off" data-customer-field readonly maxlength="100" required /></label>
+                  <label class="field"><span>Phone number</span><input name="userPhone" type="tel" inputmode="tel" autocomplete="off" data-customer-field readonly placeholder="09XXXXXXXXX or +639XXXXXXXXX" pattern="(?:09[0-9]{9}|\+639[0-9]{9})" maxlength="30" title="Use 09XXXXXXXXX or +639XXXXXXXXX" required /></label>
+                  <label class="field field-wide"><span>Email address</span><input name="userEmail" type="email" autocomplete="off" data-customer-field readonly maxlength="120" required /></label>
                 </div>
               </fieldset>
 

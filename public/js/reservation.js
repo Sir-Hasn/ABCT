@@ -9,12 +9,24 @@ const menuPickers = [...document.querySelectorAll("[data-menu-picker]")];
 const formMessage = document.querySelector("#booking-message");
 const successPanel = document.querySelector("#booking-success");
 const submitButton = document.querySelector("#booking-submit");
+const customerFields = [...document.querySelectorAll("#booking-form [data-customer-field]")];
 let menuItems = [];
 const menuSelections = new Map([
   ["table", new Map()],
   ["function-hall", new Map()],
 ]);
 const menuPickerState = new Map(menuPickers.map((picker) => [picker.dataset.menuPicker, { search: "", category: "" }]));
+
+// Prevent the browser from injecting a previously saved customer's contact
+// details into a new reservation. Fields become editable when the guest
+// focuses them; autocomplete remains disabled on the form and fields.
+function armCustomerFields() {
+  customerFields.forEach((field) => {
+    field.readOnly = true;
+    field.addEventListener("focus", () => { field.readOnly = false; });
+  });
+}
+armCustomerFields();
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -356,6 +368,7 @@ bookingForm?.addEventListener("submit", async (event) => {
 
 document.querySelector("[data-new-booking]")?.addEventListener("click", () => {
   bookingForm.reset();
+  customerFields.forEach((field) => { field.value = ""; field.readOnly = true; });
   menuSelections.forEach((selection) => selection.clear());
   menuPickerState.forEach((state) => { state.search = ""; state.category = ""; });
   menuPickers.forEach((picker) => {
