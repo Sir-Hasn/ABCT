@@ -14,6 +14,30 @@ const pageSubtitle = document.querySelector("#page-subtitle");
 const dateChip = document.querySelector(".date-chip");
 const state = { view: "overview", bookingFilter: "all", bookingSearch: "", menuSearch: "", menuCategory: "", bookings: [], menuItems: [] };
 
+function updateCustomerLabels(root) {
+  if (!root) return;
+  root.querySelectorAll("th").forEach((cell) => {
+    if (cell.textContent.trim() === "Guest") cell.textContent = "Customer";
+  });
+  root.querySelectorAll("label").forEach((label) => {
+    for (const node of label.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() === "Guest name") {
+        node.textContent = node.textContent.replace("Guest name", "Customer name");
+      }
+    }
+  });
+  root.querySelectorAll("input[placeholder]").forEach((input) => {
+    input.placeholder = input.placeholder.replace(/\bguest\b/gi, "customer");
+  });
+}
+
+const customerLabelObserver = new MutationObserver(() => {
+  updateCustomerLabels(app);
+  updateCustomerLabels(modalRoot);
+});
+customerLabelObserver.observe(app, { childList: true, subtree: true });
+customerLabelObserver.observe(modalRoot, { childList: true, subtree: true });
+
 function updateDateChip() {
   if (!dateChip) return;
   dateChip.textContent = new Intl.DateTimeFormat("en-US", {
@@ -71,7 +95,10 @@ function renderOverview() {
 
 function filteredBookings() {
   const query = state.bookingSearch.trim().toLowerCase();
-  return state.bookings.filter((booking) => (state.bookingFilter === "all" || booking.bookingStatus === state.bookingFilter) && (!query || [booking.bookingID, booking.userFullName, booking.userEmail, booking.bookingType].some((value) => String(value || "").toLowerCase().includes(query))));
+  const priority = { pending: 0, confirmed: 1, expired: 2, cancelled: 3 };
+  return state.bookings
+    .filter((booking) => (state.bookingFilter === "all" || booking.bookingStatus === state.bookingFilter) && (!query || [booking.bookingID, booking.userFullName, booking.userEmail, booking.bookingType].some((value) => String(value || "").toLowerCase().includes(query))))
+    .sort((left, right) => (priority[left.bookingStatus] ?? 99) - (priority[right.bookingStatus] ?? 99));
 }
 function renderBookings() {
   setHeader("Bookings", "Review requests and keep the schedule current."); const bookings = filteredBookings(); const filters = ["all", "pending", "confirmed", "expired", "cancelled"];
