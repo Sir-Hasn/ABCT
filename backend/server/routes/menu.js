@@ -16,6 +16,10 @@ function validatePhotoUrl(itemPhotoUrl) {
     return;
   }
 
+  if (typeof itemPhotoUrl !== "string" || itemPhotoUrl.length > 2048) {
+    throw requestError("itemPhotoUrl must be a valid HTTPS Cloudinary delivery URL.", 400);
+  }
+
   try {
     const photoUrl = new URL(itemPhotoUrl);
     if (photoUrl.protocol !== "https:" || photoUrl.hostname !== "res.cloudinary.com") {
@@ -24,6 +28,44 @@ function validatePhotoUrl(itemPhotoUrl) {
   } catch {
     throw requestError("itemPhotoUrl must be an HTTPS Cloudinary delivery URL.");
   }
+}
+
+function validateMenuBody(body, { partial = false } = {}) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw requestError("Request body must be a JSON object.", 400);
+  }
+
+  const fields = ["itemNumber", "itemName", "itemDescription", "itemCategory", "itemPhotoUrl", "itemPrice", "itemAvailable"];
+  const unknownFields = Object.keys(body).filter((field) => !fields.includes(field));
+  if (unknownFields.length > 0) {
+    throw requestError("Unknown menu field.", 400);
+  }
+
+  const requiredText = [
+    ["itemNumber", 30],
+    ["itemName", 120],
+    ["itemDescription", 1000],
+    ["itemCategory", 60],
+  ];
+  for (const [field, maxLength] of requiredText) {
+    if (body[field] === undefined && partial) continue;
+    if (typeof body[field] !== "string" || !body[field].trim() || body[field].length > maxLength) {
+      throw requestError(`${field} must be non-empty text with at most ${maxLength} characters.`, 400);
+    }
+  }
+
+  if (body.itemPrice !== undefined) {
+    if (typeof body.itemPrice !== "number" || !Number.isFinite(body.itemPrice) || body.itemPrice < 0) {
+      throw requestError("itemPrice must be a finite non-negative number.", 400);
+    }
+  } else if (!partial) {
+    throw requestError("itemPrice is required.", 400);
+  }
+
+  if (body.itemAvailable !== undefined && typeof body.itemAvailable !== "boolean") {
+    throw requestError("itemAvailable must be true or false.", 400);
+  }
+  validatePhotoUrl(body.itemPhotoUrl);
 }
 
 function validateItemId(itemId) {
@@ -56,6 +98,7 @@ adminMenuRouter.get("/", async (_request, response, next) => {
 
 adminMenuRouter.post("/", async (request, response, next) => {
   try {
+    validateMenuBody(request.body);
     const {
       itemName,
       itemDescription,
@@ -97,6 +140,7 @@ adminMenuRouter.post("/", async (request, response, next) => {
 adminMenuRouter.patch("/:itemId", async (request, response, next) => {
   try {
     validateItemId(request.params.itemId);
+    validateMenuBody(request.body, { partial: true });
     const allowedFields = ["itemNumber", "itemName", "itemDescription", "itemPrice", "itemCategory", "itemPhotoUrl"];
     const updates = Object.fromEntries(
       allowedFields

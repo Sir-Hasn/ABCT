@@ -1,6 +1,6 @@
 import { rateLimit } from "express-rate-limit";
 import mongoose from "mongoose";
-import "../config/env.js";
+import { isProductionEnvironment } from "../config/env.js";
 
 // Render may run more than one process. The default express-rate-limit memory
 // store is process-local, so production uses a small MongoDB counter store.
@@ -75,7 +75,7 @@ class MongoRateLimitStore {
 }
 
 function productionStore(windowMs, prefix) {
-  return process.env.NODE_ENV === "production" && process.env.MONGODB_URI
+  return isProductionEnvironment() && process.env.MONGODB_URI
     ? new MongoRateLimitStore(windowMs, prefix)
     : undefined;
 }

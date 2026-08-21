@@ -24,13 +24,17 @@
 
 ## Application protections
 
-- Admin routes require bearer authentication and production Cloudflare Access.
+- Admin routes require a bearer JWT with the expected issuer, audience, HS256
+  algorithm, and staff role, plus production Cloudflare Access. Public menu and
+  booking routes are intentionally unauthenticated customer endpoints.
 - The Pages API proxy uses a fixed HTTPS backend origin, removes browser
   cookies and spoofable forwarding headers, and forwards the signed Cloudflare
   Access assertion for server-side verification.
 - Login and booking requests are rate-limited.
 - Request bodies have a 100 KB limit and booking/menu fields are validated on
   the server.
+- Malformed JSON and oversized bodies return controlled 4xx responses instead
+  of leaking parser or database errors as 500 responses.
 - MongoDB operator and dotted-key input is sanitized in request bodies,
   parameters, and queries before route handling.
 - CORS allows only configured browser origins.
@@ -52,7 +56,10 @@ and unit tests use the in-memory fallback.
 
 Run `npm run test:integration` with a disposable MongoDB replica-set URI before
 launching. Run `npm run test:remote` with `SMOKE_BASE_URL` after each deployment
-to verify the Pages proxy, CORS, public menu, and health endpoints.
+to verify the Pages proxy, CORS, public menu, and health endpoints. Run
+`npm run test:remote:full` only with a short-lived admin JWT and, when the
+admin host is Access-protected, a valid Access assertion/service-token setup;
+otherwise the script must fail rather than silently skip protected checks.
 
 ## MongoDB Atlas production controls
 

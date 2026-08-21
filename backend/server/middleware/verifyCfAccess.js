@@ -44,28 +44,36 @@ function verifyCfAccess(request, response, next) {
     return next();
   }
 
+  if (!process.env.CF_ACCESS_AUD || !accessDomain()) {
+    return response.status(503).json({ message: "Cloudflare Access is not configured." });
+  }
+
   const assertion = request.get("cf-access-jwt-assertion");
   if (!assertion) {
     return response.status(403).json({ message: "Cloudflare Access authentication is required." });
   }
 
-  jwt.verify(
-    assertion,
-    getSigningKey,
-    {
-      algorithms: ["RS256"],
-      audience: process.env.CF_ACCESS_AUD,
-      issuer: `https://${accessDomain()}`,
-    },
-    (error, decoded) => {
-      if (error) {
-        return response.status(403).json({ message: "Cloudflare Access authentication failed." });
-      }
+  try {
+    jwt.verify(
+      assertion,
+      getSigningKey,
+      {
+        algorithms: ["RS256"],
+        audience: process.env.CF_ACCESS_AUD,
+        issuer: `https://${accessDomain()}`,
+      },
+      (error, decoded) => {
+        if (error || !decoded || typeof decoded !== "object") {
+          return response.status(403).json({ message: "Cloudflare Access authentication failed." });
+        }
 
-      request.cloudflareAccess = decoded;
-      next();
-    }
-  );
+        request.cloudflareAccess = decoded;
+        next();
+      }
+    );
+  } catch {
+    return response.status(503).json({ message: "Cloudflare Access verification is unavailable." });
+  }
 }
 
 export { verifyCfAccess };

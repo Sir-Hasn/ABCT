@@ -11,7 +11,7 @@ import { requireAuth } from './middleware/requireAuth.js';
 import { verifyCfAccess } from './middleware/verifyCfAccess.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
 import { adminMenuRouter, menuRouter } from './routes/menu.js';
-import './config/env.js';
+import { isProductionEnvironment } from './config/env.js';
 import cors from "cors";
 import express from "express";
 import mongoSanitize from "express-mongo-sanitize";
@@ -74,14 +74,15 @@ const configuredOrigins = (process.env.CORS_ORIGINS || "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-const defaultOrigins = process.env.NODE_ENV === "production"
+const defaultOrigins = isProductionEnvironment()
     ? ["https://abct-public.pages.dev"]
     : ["http://127.0.0.1:5500", "http://localhost:5500", "https://abct-public.pages.dev"];
 const allowedOrigins = new Set([...defaultOrigins, ...configuredOrigins]);
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.has(origin)) {
+        const secureProductionOrigin = !isProductionEnvironment() || !origin || origin.startsWith("https://");
+        if (secureProductionOrigin && (!origin || allowedOrigins.has(origin))) {
             callback(null, true);
     } else {
         callback(new Error('Not allowed by CORS'));
@@ -110,23 +111,36 @@ app.use('/api/admin/bookings', requireAuth, adminBookingsRouter);
 app.use('/api/admin/menu', requireAuth, adminMenuRouter);
 
 app.use((error, request, response, _next) => {
+    if (error?.type === "entity.parse.failed" || error instanceof SyntaxError && error.status === 400 && "body" in error) {
+        return response.status(400).json({
+            message: "Request body contains invalid JSON.",
+            requestId: request.requestId,
+        });
+    }
+    if (error?.type === "entity.too.large") {
+        return response.status(413).json({
+            message: "Request body is too large.",
+            requestId: request.requestId,
+        });
+    }
     console.error(JSON.stringify({
         event: "request_error",
         requestId: request.requestId,
         method: request.method,
         path: request.path,
+        error: error.name || "Error",
         message: error.message,
     }));
     if (error.message === "Not allowed by CORS") {
-        return response.status(403).json({ message: "Origin is not allowed." });
+        return response.status(403).json({ message: "Origin is not allowed.", requestId: request.requestId });
     }
-    response.status(500).json({ message: 'An unexpected server error occurred.' });
+    response.status(500).json({ message: 'An unexpected server error occurred.', requestId: request.requestId });
 });
 
 const PORT = process.env.PORT || 5500;
 
 async function startServer() {
-    const productionMissingCloudflareConfig = process.env.NODE_ENV === 'production' && (
+    const productionMissingCloudflareConfig = isProductionEnvironment() && (
         process.env.CF_ACCESS_ENABLED !== 'true' ||
         !process.env.CF_ACCESS_AUD ||
         !process.env.CF_ACCESS_DOMAIN

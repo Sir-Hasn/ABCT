@@ -7,6 +7,7 @@
     "create-admin": "node scripts/create-admin.js",
     "start": "node server/server.js",
     "test:remote": "node scripts/smoke-production.js",
+    "test:remote:full": "node scripts/smoke-production.js --require-admin",
     "test:syntax": "node --check server/server.js && node --check server/config/env.js && node --check server/middleware/rateLimiter.js && node --check server/middleware/verifyCfAccess.js && node --check server/middleware/requireAuth.js && node --check server/middleware/securityHeaders.js && node --check server/routes/auth.js && node --check server/routes/bookings.js && node --check server/routes/menu.js && node --check scripts/smoke-production.js && node --check test/integration.test.js",
     "test": "node --test test/api.test.js test/integration.test.js",
     "test:integration": "node --test test/integration.test.js"

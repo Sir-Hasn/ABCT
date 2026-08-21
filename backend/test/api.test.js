@@ -165,6 +165,9 @@ app.use("/api/admin", authRouter);
 app.use("/api/admin/bookings", requireAuth, adminBookingsRouter);
 app.use("/api/admin/menu", requireAuth, adminMenuRouter);
 app.use((error, _request, response, _next) => {
+  if (error?.type === "entity.parse.failed" || error instanceof SyntaxError && error.status === 400 && "body" in error) {
+    return response.status(400).json({ message: "Request body contains invalid JSON." });
+  }
   if (error.message === "Not allowed by CORS") return response.status(403).json({ message: "Origin is not allowed." });
   return response.status(500).json({ message: error.message });
 });
@@ -206,6 +209,8 @@ test("protects admin data and does not return staff passwords", async () => {
   assert.equal(unauthenticated.response.status, 401);
   assert.equal(unauthenticated.response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(unauthenticated.response.headers.get("x-frame-options"), "DENY");
+  assert.equal(unauthenticated.response.headers.get("cross-origin-opener-policy"), "same-origin");
+  assert.equal(unauthenticated.response.headers.get("x-permitted-cross-domain-policies"), "none");
   assert.equal(unauthenticated.response.headers.get("cache-control"), "no-store");
 
   const login = await request("/api/admin/login", {
@@ -233,6 +238,39 @@ test("protects admin data and does not return staff passwords", async () => {
     body: JSON.stringify({ userEmail: { $ne: null }, password: PASSWORD }),
   });
   assert.equal(operatorLogin.response.status, 400);
+});
+
+test("rejects malformed JSON, invalid menu shapes, and forged JWT claims", async () => {
+  const malformed = await fetch(`${baseUrl}/api/bookings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Forwarded-For": `10.0.0.${++requestCounter}` },
+    body: "{ invalid",
+  });
+  assert.equal(malformed.status, 400);
+
+  const token = await staffToken();
+  const invalidMenu = await request("/api/admin/menu", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      itemNumber: "M-999",
+      itemName: "Dish",
+      itemDescription: "Description",
+      itemCategory: "Test",
+      itemPrice: "100",
+    }),
+  });
+  assert.equal(invalidMenu.response.status, 400);
+
+  const forgedToken = jwt.sign(
+    { role: "admin" },
+    process.env.JWT_SECRET,
+    { subject: "test-staff-id", issuer: "wrong-issuer", audience: "abct-admin" }
+  );
+  const forgedRequest = await request("/api/admin/menu", {
+    headers: { Authorization: `Bearer ${forgedToken}` },
+  });
+  assert.equal(forgedRequest.response.status, 401);
 });
 
 test("rejects operator-shaped booking fields before persistence", async () => {

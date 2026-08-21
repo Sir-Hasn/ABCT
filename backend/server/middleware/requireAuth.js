@@ -11,7 +11,20 @@ function requireAuth(request, response, next) {
   }
 
   try {
-    request.auth = jwt.verify(token, process.env.JWT_SECRET);
+    const claims = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ["HS256"],
+      issuer: "abct-api",
+      audience: "abct-admin",
+    });
+    if (
+      !claims ||
+      typeof claims !== "object" ||
+      typeof claims.sub !== "string" ||
+      !["admin", "staff"].includes(claims.role)
+    ) {
+      return response.status(401).json({ message: "Your session is invalid or has expired." });
+    }
+    request.auth = claims;
     next();
   } catch {
     response.status(401).json({ message: "Your session is invalid or has expired." });

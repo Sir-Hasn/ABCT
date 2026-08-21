@@ -356,6 +356,23 @@ adminBookingsRouter.patch("/:bookingId", async (request, response, next) => {
       bookingEndTime,
     } = request.body;
 
+    const editableFields = new Set([
+      "bookingStatus",
+      "bookingDepositStatus",
+      "bookingNotes",
+      "userFullName",
+      "userPhone",
+      "userEmail",
+      "bookingDate",
+      "bookingTimeSlot",
+      "bookingGuestCount",
+      "bookingStartTime",
+      "bookingEndTime",
+    ]);
+    if (Object.keys(request.body).some((field) => !editableFields.has(field))) {
+      throw requestError("Unknown booking field.", 400);
+    }
+
     if (!mongoose.isValidObjectId(bookingId)) {
       throw requestError("Invalid booking ID.", 400);
     }
