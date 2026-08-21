@@ -13,6 +13,9 @@ const pageTitle = document.querySelector("#page-title");
 const pageSubtitle = document.querySelector("#page-subtitle");
 const dateChip = document.querySelector(".date-chip");
 const state = { view: "overview", bookingFilter: "all", bookingSearch: "", menuSearch: "", menuCategory: "", bookings: [], menuItems: [] };
+const bookingPoll = { timer: 0, inFlight: false, failures: 0 };
+const BOOKING_POLL_INTERVAL = 20000;
+const BOOKING_POLL_MAX_INTERVAL = 120000;
 
 function updateCustomerLabels(root) {
   if (!root) return;
@@ -80,8 +83,48 @@ function updateStaffCard() {
 function setHeader(title, subtitle) { pageTitle.textContent = title; pageSubtitle.textContent = subtitle; document.querySelectorAll("[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view)); }
 function statusBadge(status) { return `<span class="status ${escapeHtml(status)}">${escapeHtml(titleCase(status))}</span>`; }
 function renderEmpty(title, message) { return `<div class="empty"><strong>${escapeHtml(title)}</strong>${escapeHtml(message)}</div>`; }
-async function loadBookings() { state.bookings = (await api("/api/admin/bookings")).bookings || []; }
+function bookingSnapshot(bookings) {
+  return JSON.stringify([...bookings].sort((left, right) => String(left._id).localeCompare(String(right._id))));
+}
+async function loadBookings({ signal } = {}) {
+  const nextBookings = (await api("/api/admin/bookings", { signal })).bookings || [];
+  const changed = bookingSnapshot(nextBookings) !== bookingSnapshot(state.bookings);
+  state.bookings = nextBookings;
+  return changed;
+}
 async function loadMenu() { state.menuItems = (await api("/api/admin/menu")).items || []; }
+
+function scheduleBookingPoll(delay = BOOKING_POLL_INTERVAL) {
+  window.clearTimeout(bookingPoll.timer);
+  if (!document.hidden) bookingPoll.timer = window.setTimeout(pollBookings, delay);
+}
+async function pollBookings() {
+  if (document.hidden || bookingPoll.inFlight) return scheduleBookingPoll();
+  bookingPoll.inFlight = true;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  try {
+    const changed = await loadBookings({ signal: controller.signal });
+    bookingPoll.failures = 0;
+    if (changed && state.view === "bookings") renderBookings();
+    if (changed && state.view === "overview") renderOverview();
+  } catch (error) {
+    if (error?.name !== "AbortError" && !/session has expired/i.test(error?.message || "")) {
+      bookingPoll.failures = Math.min(bookingPoll.failures + 1, 3);
+    }
+  } finally {
+    window.clearTimeout(timeout);
+    bookingPoll.inFlight = false;
+    scheduleBookingPoll(Math.min(BOOKING_POLL_MAX_INTERVAL, BOOKING_POLL_INTERVAL * 2 ** bookingPoll.failures));
+  }
+}
+function startBookingPolling() {
+  if (API_BASE_URL) scheduleBookingPoll();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) window.clearTimeout(bookingPoll.timer);
+  else { updateDateChip(); pollBookings(); }
+});
 
 function renderOverview() {
   setHeader("Overview", "A clear view of today’s service.");
@@ -227,7 +270,7 @@ document.querySelector("#mobile-menu")?.addEventListener("click", () => {
   document.querySelector("#mobile-menu")?.setAttribute("aria-expanded", String(!isOpen));
 });
 
-updateStaffCard(); dateChip.textContent = new Date().toLocaleDateString("en-PH", { weekday: "short", day: "2-digit", month: "long", year: "numeric" }); setView("overview");
+updateStaffCard(); dateChip.textContent = new Date().toLocaleDateString("en-PH", { weekday: "short", day: "2-digit", month: "long", year: "numeric" }); setView("overview"); startBookingPolling();
 
 // Pending bookings can also be manually expired. The initial drawer markup
 // contains the confirm/cancel actions, so append this action after it opens.
