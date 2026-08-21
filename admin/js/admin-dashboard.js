@@ -12,7 +12,7 @@ const toastElement = document.querySelector("#toast");
 const pageTitle = document.querySelector("#page-title");
 const pageSubtitle = document.querySelector("#page-subtitle");
 const dateChip = document.querySelector(".date-chip");
-const state = { view: "overview", bookingFilter: "all", bookingSearch: "", menuSearch: "", menuCategory: "", bookings: [], menuItems: [] };
+const state = { view: "overview", bookingFilter: "all", bookingSearch: "", bookingDateFilter: "", menuSearch: "", menuCategory: "", bookings: [], menuItems: [] };
 
 function updateDateChip() {
   if (!dateChip) return;
@@ -28,7 +28,20 @@ updateDateChip();
 
 const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 const money = (value) => `₱${Number(value || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 })}`;
-const dateOnly = (value) => value ? new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" }) : "—";
+const dateOnly = (value) => value ? new Date(value).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", year: "numeric", month: "short", day: "numeric" }) : "—";
+function manilaDateKey(value) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(parsed);
+  const date = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return date.year && date.month && date.day ? `${date.year}-${date.month}-${date.day}` : "";
+}
+const todayDateKey = () => manilaDateKey(new Date());
+function dateKeyLabel(key) {
+  if (!key) return "Undated";
+  return new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", weekday: "long", year: "numeric", month: "long", day: "numeric" }).format(new Date(`${key}T00:00:00+08:00`));
+}
 const titleCase = (value) => String(value || "").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 const bookingLabel = (booking) => booking.bookingType === "function-hall" ? "Function Hall" : titleCase(booking.bookingType);
 const depositSummary = (booking) => booking.bookingDepositAmount > 0
@@ -78,6 +91,34 @@ function renderBookings() {
   app.innerHTML = `<div class="toolbar"><label class="search">⌕<input data-booking-search type="search" value="${escapeHtml(state.bookingSearch)}" placeholder="Search guest, email, or reference"></label><div class="filters">${filters.map((filter) => `<button class="filter-tab ${state.bookingFilter === filter ? "active" : ""}" data-filter="${filter}">${titleCase(filter)}</button>`).join("")}</div></div><section class="panel"><div class="panel-head"><h2 class="panel-title">All booking requests</h2><small>${bookings.length} shown</small></div><div class="table-wrap"><table class="booking-table"><thead><tr><th>Reference</th><th>Guest</th><th>Type</th><th>Date</th><th>Guests</th><th>Status</th><th></th></tr></thead><tbody>${bookings.length ? bookings.map((booking) => `<tr><td><span class="ref">${escapeHtml(booking.bookingID)}</span></td><td><strong>${escapeHtml(booking.userFullName)}</strong><small class="row-muted">${escapeHtml(booking.userEmail)}</small></td><td>${escapeHtml(bookingLabel(booking))}</td><td>${dateOnly(booking.bookingDate)}<small class="row-muted">${escapeHtml(booking.bookingStartTime || booking.bookingTimeSlot || "—")}</small></td><td>${escapeHtml(booking.bookingGuestCount)}</td><td>${statusBadge(booking.bookingStatus)}</td><td><button class="btn btn-secondary" data-booking-id="${escapeHtml(booking._id)}">Open</button></td></tr>`).join("") : `<tr><td colspan="7">${renderEmpty("No bookings found", "Try another filter or search term.")}</td></tr>`}</tbody></table></div></section>`;
 }
 
+// Booking schedule view: group reservations by their scheduled Manila date
+// while retaining status and text filters for staff.
+function filteredBookings() {
+  const query = state.bookingSearch.trim().toLowerCase();
+  return state.bookings.filter((booking) => (state.bookingFilter === "all" || booking.bookingStatus === state.bookingFilter)
+    && (!state.bookingDateFilter || manilaDateKey(booking.bookingDate) === state.bookingDateFilter)
+    && (!query || [booking.bookingID, booking.userFullName, booking.userEmail, booking.bookingType].some((value) => String(value || "").toLowerCase().includes(query))));
+}
+function bookingRow(booking) {
+  return `<tr><td><span class="ref">${escapeHtml(booking.bookingID)}</span></td><td><strong>${escapeHtml(booking.userFullName)}</strong><small class="row-muted">${escapeHtml(booking.userEmail)}</small></td><td>${escapeHtml(bookingLabel(booking))}</td><td>${dateOnly(booking.bookingDate)}<small class="row-muted">${escapeHtml(booking.bookingStartTime || booking.bookingTimeSlot || "—")}</small></td><td>${escapeHtml(booking.bookingGuestCount)}</td><td>${statusBadge(booking.bookingStatus)}</td><td><button class="btn btn-secondary" data-booking-id="${escapeHtml(booking._id)}">Open</button></td></tr>`;
+}
+function bookingDaySections(bookings) {
+  if (!bookings.length) return `<section class="panel"><div class="panel-head"><h2 class="panel-title">No bookings found</h2><small>0 shown</small></div>${renderEmpty("No matching bookings", "Try another date, status, or search term.")}</section>`;
+  const groups = new Map();
+  bookings.forEach((booking) => {
+    const key = manilaDateKey(booking.bookingDate);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(booking);
+  });
+  return [...groups.entries()].sort(([left], [right]) => (left || "9999-99-99").localeCompare(right || "9999-99-99")).map(([key, dayBookings]) => `<section class="panel booking-day"><div class="panel-head"><div><h2 class="panel-title">${key === todayDateKey() ? "Today · " : ""}${escapeHtml(dateKeyLabel(key))}</h2><small>Scheduled reservations</small></div><small>${dayBookings.length} shown</small></div><div class="table-wrap"><table class="booking-table"><thead><tr><th>Reference</th><th>Guest</th><th>Type</th><th>Date / time</th><th>Guests</th><th>Status</th><th></th></tr></thead><tbody>${dayBookings.map(bookingRow).join("")}</tbody></table></div></section>`).join("");
+}
+function renderBookings() {
+  setHeader("Bookings", "Review reservations grouped by scheduled day.");
+  const bookings = filteredBookings();
+  const filters = ["all", "pending", "confirmed", "expired", "cancelled"];
+  app.innerHTML = `<div class="toolbar"><label class="search">⌕<input data-booking-search type="search" value="${escapeHtml(state.bookingSearch)}" placeholder="Search guest, email, or reference"></label><label class="date-filter">Booking date<input data-booking-date type="date" value="${escapeHtml(state.bookingDateFilter)}"></label><button class="btn btn-quiet" type="button" data-booking-today>Today</button><button class="btn btn-quiet" type="button" data-booking-clear-date ${state.bookingDateFilter ? "" : "disabled"}>Clear date</button><div class="filters">${filters.map((filter) => `<button class="filter-tab ${state.bookingFilter === filter ? "active" : ""}" data-filter="${filter}">${titleCase(filter)}</button>`).join("")}</div></div><div class="booking-day-list"><div class="booking-summary"><strong>${bookings.length} reservation${bookings.length === 1 ? "" : "s"}</strong>${state.bookingDateFilter ? ` scheduled for ${escapeHtml(dateKeyLabel(state.bookingDateFilter))}` : " across all scheduled days"}</div>${bookingDaySections(bookings)}</div>`;
+}
+
 function menuCards() {
   const query = state.menuSearch.trim().toLowerCase();
   const items = state.menuItems.filter((item) => (!query || `${item.itemName} ${item.itemDescription} ${item.itemCategory}`.toLowerCase().includes(query)) && (!state.menuCategory || item.itemCategory === state.menuCategory));
@@ -86,6 +127,30 @@ function menuCards() {
 function renderMenu() {
   setHeader("Menu", "Manage the dishes available to guests."); const categories = [...new Set(state.menuItems.map((item) => item.itemCategory).filter(Boolean))].sort();
   app.innerHTML = `<div class="menu-toolbar"><label class="search">⌕<input data-menu-search type="search" placeholder="Search menu" value="${escapeHtml(state.menuSearch)}"></label><select class="select-control" data-menu-category><option value="">All categories</option>${categories.map((category) => `<option ${state.menuCategory === category ? "selected" : ""}>${escapeHtml(category)}</option>`).join("")}</select><button class="btn btn-primary" data-add-menu>Add menu item <span>＋</span></button></div><div class="menu-grid">${menuCards()}</div>`;
+}
+
+function normalizeMenuText(value) {
+  return String(value ?? "").normalize("NFKC").trim().toLocaleLowerCase();
+}
+function menuCards() {
+  const query = normalizeMenuText(state.menuSearch);
+  const category = normalizeMenuText(state.menuCategory);
+  const items = state.menuItems.filter((item) => {
+    const searchable = [item.itemNumber, item.itemName, item.itemDescription, item.itemCategory].map(normalizeMenuText).join(" ");
+    return (!query || searchable.includes(query)) && (!category || normalizeMenuText(item.itemCategory) === category);
+  });
+  return items.map((item) => `<article class="menu-card"><div class="dish-preview">${item.itemPhotoUrl ? `<img src="${escapeHtml(item.itemPhotoUrl)}" alt="${escapeHtml(item.itemName)}">` : `<span class="dish-placeholder">${escapeHtml((item.itemName || "?").slice(0, 1).toUpperCase())}</span>`}</div><div class="dish-content"><h3 class="dish-name">${escapeHtml(item.itemName)}</h3><p class="dish-meta"><span>${escapeHtml(item.itemCategory)}</span><span class="dish-price">${money(item.itemPrice)}</span></p><p class="row-muted">${escapeHtml(item.itemDescription)}</p><div class="availability-row"><span class="availability ${item.itemAvailable ? "available" : "unavailable"}">${item.itemAvailable ? "Available" : "Archived"}</span><label class="switch" title="Toggle availability"><input type="checkbox" data-menu-availability="${escapeHtml(item._id)}" ${item.itemAvailable ? "checked" : ""}><span class="slider"></span></label></div></div></article>`).join("") || renderEmpty("No menu items", "Try another search or category.");
+}
+function renderMenu() {
+  setHeader("Menu", "Manage the dishes available to guests.");
+  const categoryMap = new Map();
+  state.menuItems.forEach((item) => {
+    const label = String(item.itemCategory ?? "").trim();
+    const key = normalizeMenuText(label);
+    if (key && !categoryMap.has(key)) categoryMap.set(key, label);
+  });
+  const categories = [...categoryMap.entries()].sort((left, right) => left[1].localeCompare(right[1], undefined, { sensitivity: "base" }));
+  app.innerHTML = `<div class="menu-toolbar"><label class="search">⌕<input data-menu-search type="search" placeholder="Search item number, name, category" value="${escapeHtml(state.menuSearch)}"></label><select class="select-control" data-menu-category><option value="">All categories</option>${categories.map(([key, label]) => `<option value="${escapeHtml(label)}" ${normalizeMenuText(state.menuCategory) === key ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><button class="btn btn-primary" data-add-menu>Add menu item <span>＋</span></button></div><div class="menu-grid">${menuCards()}</div>`;
 }
 
 function openBookingDrawer(id) {
@@ -113,6 +178,8 @@ document.addEventListener("click", async (event) => {
   if (drawerClose && (event.target === drawerClose || event.target.closest(".close-btn"))) { drawerRoot.innerHTML = ""; return; }
   const modalClose = event.target.closest("[data-close-modal]");
   if (modalClose && (event.target === modalClose || event.target.closest(".close-btn"))) { modalRoot.innerHTML = ""; return; }
+  if (event.target.closest("[data-booking-today]")) { state.bookingDateFilter = todayDateKey(); return renderBookings(); }
+  if (event.target.closest("[data-booking-clear-date]")) { state.bookingDateFilter = ""; return renderBookings(); }
   const filter = event.target.closest("[data-filter]"); if (filter) { state.bookingFilter = filter.dataset.filter; return renderBookings(); }
   const update = event.target.closest("[data-update-booking]");
   if (update) { try { await api(`/api/admin/bookings/${update.dataset.bookingId}`, { method: "PATCH", body: JSON.stringify({ bookingStatus: update.dataset.updateBooking }) }); await loadBookings(); drawerRoot.innerHTML = ""; showToast("Booking updated."); state.view === "bookings" ? renderBookings() : renderOverview(); } catch (error) { showToast(error.message, "warning"); } return; }
@@ -129,6 +196,7 @@ document.addEventListener("input", (event) => {
   }
 });
 document.addEventListener("change", async (event) => {
+  if (event.target.matches("[data-booking-date]")) { state.bookingDateFilter = event.target.value; renderBookings(); return; }
   if (event.target.matches("[data-menu-category]")) { state.menuCategory = event.target.value; renderMenu(); return; }
   if (!event.target.matches("[data-menu-availability]")) return;
   try { await api(`/api/admin/menu/${event.target.dataset.menuAvailability}/availability`, { method: "PATCH", body: JSON.stringify({ itemAvailable: event.target.checked }) }); const item = state.menuItems.find((entry) => entry._id === event.target.dataset.menuAvailability); if (item) item.itemAvailable = event.target.checked; showToast(event.target.checked ? "Menu item restored." : "Menu item archived."); renderMenu(); } catch (error) { event.target.checked = !event.target.checked; showToast(error.message, "warning"); }
