@@ -27,6 +27,8 @@ const __dirname = path.dirname(__filename);
 //const connectToMongoDB = require('./connectToMongoDB');
 
 const app = express();
+// Do not disclose the framework name in production responses.
+app.disable("x-powered-by");
 
 // Render and Cloudflare sit in front of the application in production. Trust
 // the first proxy so rate limiting uses the originating client address.

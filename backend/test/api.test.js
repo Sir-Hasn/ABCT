@@ -147,6 +147,7 @@ function patchModels() {
 
 const app = express();
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
 app.use(express.json({ limit: "100kb" }));
 app.use((request, _response, next) => {
   for (const key of ["body", "params", "query"]) {
@@ -209,6 +210,7 @@ test("protects admin data and does not return staff passwords", async () => {
   assert.equal(unauthenticated.response.status, 401);
   assert.equal(unauthenticated.response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(unauthenticated.response.headers.get("x-frame-options"), "DENY");
+  assert.equal(unauthenticated.response.headers.get("x-powered-by"), null);
   assert.equal(unauthenticated.response.headers.get("cross-origin-opener-policy"), "same-origin");
   assert.equal(unauthenticated.response.headers.get("x-permitted-cross-domain-policies"), "none");
   assert.equal(unauthenticated.response.headers.get("cache-control"), "no-store");
