@@ -39,13 +39,3 @@
   .menu-toolbar .search{width:100%;min-width:0}
   .menu-toolbar>.select-control,.menu-toolbar>.btn{height:42px}
 }
-.booking-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 14px;color:var(--muted);font-size:11px}
-.booking-summary strong{color:var(--ink);font-size:13px}
-.booking-day-list{display:grid;gap:18px}
-.booking-day .panel-head>div{min-width:0}
-.booking-day .panel-title{line-height:1.1}
-.date-filter{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;white-space:nowrap}
-.date-filter input{border:1px solid var(--line);background:#fff;color:var(--ink);padding:11px 10px;font-size:11px}
-.btn-quiet:disabled{color:#b8b0a8;cursor:not-allowed}
-@media (min-width:1051px){.toolbar{display:flex}.toolbar .search{flex:1 1 280px}.toolbar .filters{margin-left:auto}}
-@media (max-width:760px){.booking-summary{align-items:flex-start;flex-direction:column}.date-filter{width:100%;justify-content:space-between}.date-filter input{flex:1}.booking-day .booking-table{min-width:900px}}
