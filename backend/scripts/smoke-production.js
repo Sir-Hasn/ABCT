@@ -63,6 +63,18 @@ function expectJson(result, label) {
   expect(contentType.includes("application/json"), `${label} returned ${result.response.status} ${contentType}: ${preview}`);
 }
 
+function isPlaceholder(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return !normalized
+    || normalized.includes("your-")
+    || normalized.includes("your_")
+    || normalized.includes("replace-")
+    || normalized.includes("placeholder")
+    || normalized.includes("<your")
+    || normalized.includes("<token")
+    || normalized.includes("<secret");
+}
+
 try {
   const health = await check("/api/healthz");
   expectJson(health, "/api/healthz");
@@ -122,15 +134,28 @@ try {
   const cfAccessClientSecret = String(process.env.SMOKE_CF_ACCESS_CLIENT_SECRET || "").trim();
   if (adminBaseUrl) {
     expect(!adminBaseUrl.includes("["), "SMOKE_ADMIN_BASE_URL must be a plain HTTPS URL, not Markdown link text");
-    expect(adminToken.length > 0, "SMOKE_ADMIN_TOKEN is required when SMOKE_ADMIN_BASE_URL is set");
+    expect(!isPlaceholder(adminToken), "SMOKE_ADMIN_TOKEN must be a real short-lived staff JWT");
+    expect(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(adminToken), "SMOKE_ADMIN_TOKEN must be a JWT with three segments");
     const hasAccessAssertion = cfAccessAssertion.length > 0;
     const hasAccessServiceToken = cfAccessClientId.length > 0 && cfAccessClientSecret.length > 0;
-    expect(hasAccessAssertion || hasAccessServiceToken, "Provide SMOKE_CF_ACCESS_ASSERTION or both Cloudflare Access service-token variables when SMOKE_ADMIN_BASE_URL is set");
+    const validAccessAssertion = hasAccessAssertion && !isPlaceholder(cfAccessAssertion);
+    const validServiceToken = hasAccessServiceToken
+      && !isPlaceholder(cfAccessClientId)
+      && !isPlaceholder(cfAccessClientSecret);
+    if (hasAccessAssertion) expect(validAccessAssertion, "SMOKE_CF_ACCESS_ASSERTION must be a real short-lived assertion");
+    if (hasAccessServiceToken) {
+      expect(!isPlaceholder(cfAccessClientId), "SMOKE_CF_ACCESS_CLIENT_ID must be a real service-token ID");
+      expect(!isPlaceholder(cfAccessClientSecret), "SMOKE_CF_ACCESS_CLIENT_SECRET must be a real service-token secret");
+    }
+    expect(validAccessAssertion || validServiceToken, "Provide a real SMOKE_CF_ACCESS_ASSERTION or both Cloudflare Access service-token variables when SMOKE_ADMIN_BASE_URL is set");
 
     try {
       const adminUrl = new URL(adminBaseUrl);
       expect(adminUrl.protocol === "https:", "SMOKE_ADMIN_BASE_URL must use HTTPS");
-      if (adminToken && (hasAccessAssertion || hasAccessServiceToken) && adminUrl.protocol === "https:") {
+      const validAdminCredentials = !isPlaceholder(adminToken)
+        && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(adminToken)
+        && (validAccessAssertion || validServiceToken);
+      if (validAdminCredentials && adminUrl.protocol === "https:") {
         const headers = {
           Authorization: `Bearer ${adminToken}`,
         };
@@ -146,7 +171,13 @@ try {
           const reason = error.cause?.code || error.cause?.message || error.message;
           throw new Error(`GET ${adminBaseUrl}/api/admin/bookings failed: ${reason}`);
         }
+        const adminRaw = await bookings.text();
+        let adminBody = {};
+        try { adminBody = JSON.parse(adminRaw); } catch { /* expectJson reports the response below. */ }
+        const adminResult = { response: bookings, body: adminBody, raw: adminRaw };
+        expectJson(adminResult, "/api/admin/bookings");
         expect(bookings.status === 200, `/api/admin/bookings returned ${bookings.status}`);
+        expect(Array.isArray(adminBody.bookings), "/api/admin/bookings did not return a bookings array");
       }
     } catch (error) {
       failures.push(`SMOKE_ADMIN_BASE_URL is invalid: ${error.message}`);
