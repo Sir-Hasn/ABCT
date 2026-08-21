@@ -516,7 +516,7 @@ body {
   letter-spacing: .14em;
   display: flex;
   gap: 18px;
-  color: #8b8882;
+  color:var(--ink);
 }
 .section-label span:first-child {
   color: var(--verm);
@@ -699,7 +699,7 @@ body {
   align-items: start;
 }
 .section-label.light {
-  color: rgba(255,255,255,.56);
+  color: var(--ivory);
 }
 .visit-card h2 {
   font-size: clamp(50px,5.4vw,76px);
