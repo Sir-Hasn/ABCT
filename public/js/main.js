@@ -48,12 +48,20 @@ document.addEventListener("click", (event) => {
   });
 });
 
-const newsletterForm = document.querySelector("#newsletter-form");
-newsletterForm?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  if (!newsletterForm.reportValidity()) return;
-  showToast("You’re on the list. See you at ABCT.");
-  newsletterForm.reset();
-});
+const followLinks = document.querySelector(".follow-links");
+if (followLinks) {
+  const links = [
+    ["https://www.facebook.com/ABCTEastridge", "Facebook", "ABCT Eastridge · News and updates", true],
+    ["https://www.instagram.com/abct_eastridge", "Instagram", "@abct_eastridge · Behind the scenes", true],
+    ["https://www.tiktok.com/@abcteastridge", "TikTok", "@abcteastridge · New dishes and updates", true],
+    ["mailto:abcteastridge@gmail.com", "abcteastridge@gmail.com", "Reservations, events, and questions", false],
+    ["tel:+639544000221", "09544000221", "Call ABCT directly", false],
+  ];
+  followLinks.innerHTML = links.map(([href, label, detail, external], index) => `
+    <a class="social-link" href="${href}"${external ? ' target="_blank" rel="noreferrer"' : ""} data-social="${label}">
+      <span class="social-index">${String(index + 1).padStart(2, "0")}</span>
+      <span><strong>${label}</strong><small>${detail}</small></span>
+    </a>`).join("");
+}
 
 window.ABCTShowToast = showToast;

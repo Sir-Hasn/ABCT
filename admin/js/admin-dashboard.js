@@ -8,6 +8,14 @@ if (!sessionData?.token) { window.location.replace("index.html"); throw new Erro
 const app = document.querySelector("#app");
 const drawerRoot = document.querySelector("#drawer-root");
 const modalRoot = document.querySelector("#modal-root");
+// Menu forms stay open until staff explicitly uses Cancel or the close button.
+// The backdrop remains visual only; it must not dismiss an in-progress form.
+document.addEventListener("click", (event) => {
+  const backdrop = event.target.closest("#modal-root > .modal-backdrop");
+  if (backdrop && event.target === backdrop && backdrop.querySelector("#menu-form, #menu-edit-form")) {
+    event.stopImmediatePropagation();
+  }
+}, true);
 const toastElement = document.querySelector("#toast");
 const pageTitle = document.querySelector("#page-title");
 const pageSubtitle = document.querySelector("#page-subtitle");
