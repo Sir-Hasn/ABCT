@@ -41,7 +41,9 @@ document.addEventListener("click", (event) => {
   if (!filterButton) return;
   const category = filterButton.dataset.filter;
   document.querySelectorAll("[data-filter]").forEach((button) => {
-    button.classList.toggle("active", button === filterButton);
+    const active = button === filterButton;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
   });
   document.querySelectorAll("[data-menu-card]").forEach((card) => {
     card.hidden = category !== "all" && card.dataset.category !== category;

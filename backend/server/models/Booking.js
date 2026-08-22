@@ -6,6 +6,11 @@ const orderedItemSchema = new mongoose.Schema(
   {
     itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
     itemName: { type: String, required: true, trim: true },
+    // Price snapshots are calculated by the backend at booking time. These
+    // fields are optional for compatibility with bookings created earlier.
+    baseUnitPrice: { type: Number, min: 0 },
+    mealUpgrade: { type: Boolean, default: false },
+    mealUpgradeFee: { type: Number, min: 0, default: 0 },
     unitPrice: { type: Number, required: true, min: 0 },
     quantity: { type: Number, required: true, min: 1 },
     subtotal: { type: Number, required: true, min: 0 },

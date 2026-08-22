@@ -16,6 +16,13 @@ const menuSelections = new Map([
   ["function-hall", new Map()],
 ]);
 const menuPickerState = new Map(menuPickers.map((picker) => [picker.dataset.menuPicker, { search: "", category: "" }]));
+const DEFAULT_MEAL_UPGRADE_FEE = 420;
+const MEAL_UPGRADE_CATEGORIES = new Set([
+  "tempura \u5929\u3077\u3089",
+  "agemono \u63da\u3052\u7269",
+  "yakimono \u713c\u304d\u7269",
+  "teppanyaki \u9244\u677f\u713c\u304d",
+]);
 
 // Prevent the browser from injecting a previously saved customer's contact
 // details into a new reservation. Fields become editable when the guest
@@ -59,6 +66,28 @@ function manilaDateString() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
 }
 
+function normalizeMenuCategory(value) {
+  return String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isMealUpgradeEligible(item) {
+  return Boolean(item?.mealUpgradeEligible)
+    || MEAL_UPGRADE_CATEGORIES.has(normalizeMenuCategory(item?.itemCategory));
+}
+
+function mealUpgradeFee(item) {
+  return Number.isFinite(Number(item?.mealUpgradeFee)) ? Number(item.mealUpgradeFee) : DEFAULT_MEAL_UPGRADE_FEE;
+}
+
+function selectionKey(itemId, mealUpgrade = false) {
+  return `${itemId}:${mealUpgrade ? "meal" : "ala-carte"}`;
+}
+
+function selectionParts(key) {
+  const separator = key.lastIndexOf(":");
+  return { itemId: key.slice(0, separator), mealUpgrade: key.slice(separator + 1) === "meal" };
+}
+
 function selectionFor(type) {
   if (!menuSelections.has(type)) menuSelections.set(type, new Map());
   return menuSelections.get(type);
@@ -67,13 +96,14 @@ function selectionFor(type) {
 function selectedMenuItems(type) {
   return [...selectionFor(type).entries()]
     .filter(([, quantity]) => Number.isInteger(quantity) && quantity > 0)
-    .map(([itemId, quantity]) => ({ itemId, quantity }));
+    .map(([key, quantity]) => ({ ...selectionParts(key), quantity }));
 }
 
 function getFoodTotal(type) {
   return selectedMenuItems(type).reduce((total, selection) => {
     const item = menuItems.find((menuItem) => menuItem._id === selection.itemId);
-    return total + (Number(item?.itemPrice) || 0) * selection.quantity;
+    const unitPrice = (Number(item?.itemPrice) || 0) + (selection.mealUpgrade ? mealUpgradeFee(item) : 0);
+    return total + unitPrice * selection.quantity;
   }, 0);
 }
 
@@ -129,10 +159,16 @@ function renderMenuResults(picker) {
   if (!results) return;
   results.innerHTML = items.length
     ? items.map((item) => {
-      const quantity = selectionFor(type).get(item._id) || 0;
+      const alaCarteQuantity = selectionFor(type).get(selectionKey(item._id, false)) || 0;
+      const mealQuantity = selectionFor(type).get(selectionKey(item._id, true)) || 0;
+      const mealEligible = isMealUpgradeEligible(item);
+      const mealPrice = Number(item.itemPrice || 0) + mealUpgradeFee(item);
       return `<div class="order-item" data-menu-order data-item-id="${escapeHtml(item._id)}">
         <div class="order-item-copy"><strong>${escapeHtml(item.itemName)}</strong><small>${escapeHtml(item.itemDescription)} · ${money(item.itemPrice)}</small><em>${escapeHtml(item.itemCategory)}</em></div>
-        <label class="quantity-field">Qty <input type="number" data-quantity min="0" max="100" value="${quantity}" inputmode="numeric" aria-label="Quantity for ${escapeHtml(item.itemName)}"></label>
+        <div class="menu-option-quantities">
+          <label class="quantity-field menu-option">À la carte · ${money(item.itemPrice)} <input type="number" data-quantity data-meal-upgrade="false" min="0" max="100" value="${alaCarteQuantity}" inputmode="numeric" aria-label="À la carte quantity for ${escapeHtml(item.itemName)}"></label>
+          ${mealEligible ? `<label class="quantity-field menu-option">Zen Teishoku · ${money(mealPrice)} <input type="number" data-quantity data-meal-upgrade="true" min="0" max="100" value="${mealQuantity}" inputmode="numeric" aria-label="Zen Teishoku quantity for ${escapeHtml(item.itemName)}"></label>` : ""}
+        </div>
       </div>`;
     }).join("")
     : `<p class="field-note">${menuItems.length ? "No menu items match your search." : "Menu items are unavailable right now. You may still submit the reservation."}</p>`;
@@ -145,6 +181,15 @@ function renderSelectedOrder(picker) {
     .filter((selection) => selection.item);
   const target = picker.querySelector("[data-menu-selected]");
   if (!target) return;
+  if (selected.length) {
+    target.innerHTML = `<div class="selected-order-head"><strong>Your order (${selected.length} line${selected.length === 1 ? "" : "s"})</strong><button type="button" class="text-button" data-clear-menu>Clear</button></div>
+      ${selected.map(({ item, quantity, mealUpgrade }) => {
+        const label = mealUpgrade ? "Zen Teishoku" : "À la carte";
+        const unitPrice = Number(item.itemPrice || 0) + (mealUpgrade ? mealUpgradeFee(item) : 0);
+        return `<div class="selected-order-row"><span>${quantity} x ${escapeHtml(item.itemName)} <small>${label}</small></span><strong>${money(unitPrice * quantity)}</strong><button type="button" class="remove-order" data-remove-item="${escapeHtml(item._id)}" data-meal-upgrade="${mealUpgrade}" aria-label="Remove ${label} ${escapeHtml(item.itemName)}">&times;</button></div>`;
+      }).join("")}`;
+    return;
+  }
   target.innerHTML = selected.length
     ? `<div class="selected-order-head"><strong>Your order (${selected.length} item${selected.length === 1 ? "" : "s"})</strong><button type="button" class="text-button" data-clear-menu>Clear</button></div>
       ${selected.map(({ item, quantity }) => `<div class="selected-order-row"><span>${quantity} × ${escapeHtml(item.itemName)}</span><strong>${money(item.itemPrice * quantity)}</strong><button type="button" class="remove-order" data-remove-item="${escapeHtml(item._id)}" aria-label="Remove ${escapeHtml(item.itemName)}">×</button></div>`).join("")}`
@@ -261,7 +306,7 @@ menuPickers.forEach((picker) => {
     }
     const remove = event.target.closest("[data-remove-item]");
     if (remove) {
-      selectionFor(type).delete(remove.dataset.removeItem);
+      selectionFor(type).delete(selectionKey(remove.dataset.removeItem, remove.dataset.mealUpgrade === "true"));
       renderMenuResults(picker);
       renderSelectedOrder(picker);
       updateHallSummary();
@@ -284,9 +329,11 @@ menuPickers.forEach((picker) => {
     }
     if (event.target.matches("[data-quantity]")) {
       const item = event.target.closest("[data-menu-order]");
+      const mealUpgrade = event.target.dataset.mealUpgrade === "true";
       const quantity = Math.min(100, Math.max(0, Number.parseInt(event.target.value, 10) || 0));
-      if (quantity) selectionFor(type).set(item.dataset.itemId, quantity);
-      else selectionFor(type).delete(item.dataset.itemId);
+      const key = selectionKey(item.dataset.itemId, mealUpgrade);
+      if (quantity) selectionFor(type).set(key, quantity);
+      else selectionFor(type).delete(key);
       event.target.value = quantity;
       renderSelectedOrder(picker);
       updateHallSummary();

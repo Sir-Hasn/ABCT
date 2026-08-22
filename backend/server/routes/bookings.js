@@ -5,6 +5,7 @@ import { Bookings } from "../models/Booking.js";
 import { BookingSlot } from "../models/BookingSlot.js";
 import { Items } from "../models/MenuItem.js";
 import { normalizePhilippineMobile } from "../validation/phone.js";
+import { MEAL_UPGRADE_FEE, isMealUpgradeEligible } from "../config/menuPricing.js";
 
 const FUNCTION_HALL_MIN_HOURS = 4;
 const FUNCTION_HALL_EXTENSION_FEE_PER_HOUR = 5000;
@@ -148,32 +149,47 @@ async function buildFoodOrder(selectedMenuItems) {
     throw requestError("selectedMenuItems must be an array.");
   }
 
-  const quantitiesById = new Map();
+  const selectionsByKey = new Map();
   for (const selection of selectedMenuItems) {
     const itemId = selection?.itemId;
     const quantity = selection?.quantity;
+    const mealUpgrade = selection?.mealUpgrade === undefined ? false : selection.mealUpgrade;
     if (!mongoose.isValidObjectId(itemId) || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
       throw requestError("Each selected menu item needs a valid itemId and quantity from 1 to 100.");
     }
-    if (quantitiesById.has(itemId)) {
-      throw requestError("Each menu item can be selected only once.");
+    if (typeof mealUpgrade !== "boolean") {
+      throw requestError("mealUpgrade must be true or false.", 400);
     }
-    quantitiesById.set(itemId, quantity);
+    const key = `${itemId}:${mealUpgrade ? "meal" : "ala-carte"}`;
+    if (selectionsByKey.has(key)) {
+      throw requestError("Each menu item and meal option can be selected only once.");
+    }
+    selectionsByKey.set(key, { itemId, quantity, mealUpgrade });
   }
 
-  const itemIds = [...quantitiesById.keys()];
+  const itemIds = [...new Set([...selectionsByKey.values()].map((selection) => selection.itemId))];
   const menuItems = await Items.find({ _id: { $in: itemIds }, itemAvailable: true }).lean();
   if (menuItems.length !== itemIds.length) {
     throw requestError("One or more selected menu items are unavailable.");
   }
 
-  const foodOrders = menuItems.map((item) => {
-    const quantity = quantitiesById.get(item._id.toString());
-    const subtotal = item.itemPrice * quantity;
+  const itemsById = new Map(menuItems.map((item) => [item._id.toString(), item]));
+  const foodOrders = [...selectionsByKey.values()].map(({ itemId, quantity, mealUpgrade }) => {
+    const item = itemsById.get(itemId);
+    if (mealUpgrade && !isMealUpgradeEligible(item)) {
+      throw requestError(`${item.itemName} does not offer the Zen Teishoku meal set.`);
+    }
+    const baseUnitPrice = Number(item.itemPrice);
+    const mealUpgradeFee = mealUpgrade ? MEAL_UPGRADE_FEE : 0;
+    const unitPrice = baseUnitPrice + mealUpgradeFee;
+    const subtotal = unitPrice * quantity;
     return {
       itemId: item._id,
       itemName: item.itemName,
-      unitPrice: item.itemPrice,
+      baseUnitPrice,
+      mealUpgrade,
+      mealUpgradeFee,
+      unitPrice,
       quantity,
       subtotal,
     };

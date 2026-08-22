@@ -13,3 +13,4 @@ public/images
 .abct-secure-backups/
 abct-secure-backups/
 .env.example
+.vscode

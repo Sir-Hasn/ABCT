@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Router } from "express";
 import { Items } from "../models/MenuItem.js";
+import { MEAL_UPGRADE_FEE, isMealUpgradeEligible } from "../config/menuPricing.js";
 
 const menuRouter = Router();
 const adminMenuRouter = Router();
@@ -81,7 +82,13 @@ menuRouter.get("/", async (_request, response, next) => {
       .sort({ itemCategory: 1, itemName: 1 })
       .lean();
 
-    response.status(200).json({ items });
+    response.status(200).json({
+      items: items.map((item) => ({
+        ...item,
+        mealUpgradeEligible: isMealUpgradeEligible(item),
+        mealUpgradeFee: MEAL_UPGRADE_FEE,
+      })),
+    });
   } catch (error) {
     next(error);
   }
@@ -90,7 +97,13 @@ menuRouter.get("/", async (_request, response, next) => {
 adminMenuRouter.get("/", async (_request, response, next) => {
   try {
     const items = await Items.find({}).sort({ itemCategory: 1, itemName: 1 }).lean();
-    response.status(200).json({ items });
+    response.status(200).json({
+      items: items.map((item) => ({
+        ...item,
+        mealUpgradeEligible: isMealUpgradeEligible(item),
+        mealUpgradeFee: MEAL_UPGRADE_FEE,
+      })),
+    });
   } catch (error) {
     next(error);
   }

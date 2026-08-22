@@ -377,6 +377,85 @@ test("rejects invalid phone numbers and enforces table menu notice and deposit",
   assert.equal(valid.body.booking.bookingDepositStatus, "unpaid");
 });
 
+test("prices Zen Teishoku upgrades server-side and allows mixed order lines", async () => {
+  const eligibleId = new mongoose.Types.ObjectId();
+  state.menuItems.push({
+    _id: eligibleId,
+    itemNumber: "M-003",
+    itemName: "Satsumaimo Tempura",
+    itemDescription: "Sweet potato tempura.",
+    itemPrice: 170,
+    itemCategory: "TEMPURA \u5929\u3077\u3089",
+    itemAvailable: true,
+  });
+
+  const result = await request("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify({
+      userFullName: "Meal Guest",
+      userPhone: "09171234567",
+      userEmail: "meal@example.com",
+      bookingType: "table",
+      bookingDate: dateOffset(5),
+      bookingTimeSlot: "18:00",
+      bookingGuestCount: 2,
+      selectedMenuItems: [
+        { itemId: eligibleId.toString(), quantity: 1, mealUpgrade: false, unitPrice: 0 },
+        { itemId: eligibleId.toString(), quantity: 1, mealUpgrade: true, unitPrice: 1 },
+      ],
+    }),
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.booking.foodOrderTotal, 760);
+  assert.equal(state.bookings.at(-1).foodOrders.length, 2);
+  assert.deepEqual(state.bookings.at(-1).foodOrders.map((line) => ({
+    mealUpgrade: line.mealUpgrade,
+    baseUnitPrice: line.baseUnitPrice,
+    mealUpgradeFee: line.mealUpgradeFee,
+    unitPrice: line.unitPrice,
+    subtotal: line.subtotal,
+  })), [
+    { mealUpgrade: false, baseUnitPrice: 170, mealUpgradeFee: 0, unitPrice: 170, subtotal: 170 },
+    { mealUpgrade: true, baseUnitPrice: 170, mealUpgradeFee: 420, unitPrice: 590, subtotal: 590 },
+  ]);
+
+  const duplicateOption = await request("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify({
+      userFullName: "Duplicate Guest",
+      userPhone: "09171234567",
+      userEmail: "duplicate@example.com",
+      bookingType: "function-hall",
+      bookingDate: dateOffset(10),
+      bookingStartTime: "10:00",
+      bookingEndTime: "14:00",
+      bookingGuestCount: 30,
+      selectedMenuItems: [
+        { itemId: eligibleId.toString(), quantity: 1, mealUpgrade: true },
+        { itemId: eligibleId.toString(), quantity: 2, mealUpgrade: true },
+      ],
+    }),
+  });
+  assert.equal(duplicateOption.response.status, 422);
+
+  const unsupportedOption = await request("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify({
+      userFullName: "Unsupported Guest",
+      userPhone: "09171234567",
+      userEmail: "unsupported@example.com",
+      bookingType: "table",
+      bookingDate: dateOffset(5),
+      bookingTimeSlot: "18:00",
+      bookingGuestCount: 2,
+      selectedMenuItems: [{ itemId: testMenuId.toString(), quantity: 1, mealUpgrade: true }],
+    }),
+  });
+  assert.equal(unsupportedOption.response.status, 422);
+  assert.match(unsupportedOption.body.message, /does not offer/);
+});
+
 test("enforces Function Hall duration, extension fee, slot conflicts, and expiration release", async () => {
   const tooShort = await request("/api/bookings", {
     method: "POST",

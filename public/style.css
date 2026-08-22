@@ -10,3 +10,203 @@
 @media(max-width:420px){.brand{gap:7px;font-size:10px}.brand-mark{width:38px;height:32px}.hero-copy,.menu-section,.section-grid,.visit-card,.follow-section,.booking-page,.menu-page{padding-left:16px;padding-right:16px}.site-header{padding-left:16px;padding-right:16px}.main-nav{padding-left:16px;padding-right:16px}.follow-location{font-size:9px}.site-footer{padding-left:16px;padding-right:16px}.menu-catering-note{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
 body{font-size:16px;line-height:1.55}.main-nav,.nav-reserve{font-size:14px}.eyebrow{font-size:12px}.hero-intro,.story-body p,.booking-intro>p:not(.eyebrow),.page-heading>p:not(.eyebrow){font-size:16px}.hero-foot{font-size:11px}.marquee-strip{font-size:12px}.section-label{font-size:12px}.filter{font-size:14px}.dish-meta p{font-size:13px}.dish-meta strong{font-size:14px}.visit-details{font-size:15px}.map-placeholder small{font-size:12px}.follow-intro>p:last-child{font-size:16px}.social-index{font-size:12px}.social-link strong{font-size:25px}.social-link small{font-size:12px}.follow-location{font-size:12px}.site-footer{font-size:13px}.field,.field-note,.form-note{font-size:13px}.field input,.field select,.field textarea{font-size:15px}.booking-submit,.button{font-size:14px}.contact-card>p:not(.eyebrow),.booking-success p:not(.eyebrow){font-size:15px}.order-item label,.order-item small{font-size:12px}.menu-result-count,.public-empty,.public-error{font-size:13px}.menu-catering-note>p{font-size:15px}
 @media(max-width:800px){.field input,.field select,.field textarea{font-size:16px}.social-link strong{font-size:22px}.social-link small{font-size:12px}.site-footer{font-size:14px}}
+
+/* Public menu loading state: reserve the final card dimensions while the API responds. */
+.public-menu-skeleton {
+  display: block;
+  min-width: 0;
+}
+
+.public-menu-skeleton .skeleton-block {
+  display: block;
+  background: linear-gradient(100deg, #e8e2dc 25%, #f4eee8 40%, #e8e2dc 55%);
+  background-size: 220% 100%;
+  animation: menu-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.public-menu-skeleton .skeleton-image {
+  aspect-ratio: 1.05;
+}
+
+.public-menu-skeleton .skeleton-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 0;
+}
+
+.public-menu-skeleton .skeleton-title {
+  width: min(190px, 55vw);
+  height: 22px;
+  margin-bottom: 10px;
+}
+
+.public-menu-skeleton .skeleton-line {
+  width: min(230px, 68vw);
+  height: 10px;
+  margin-top: 7px;
+}
+
+.public-menu-skeleton .skeleton-line-short {
+  width: min(165px, 48vw);
+}
+
+.public-menu-skeleton .skeleton-price {
+  width: 48px;
+  height: 14px;
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+
+@keyframes menu-skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .public-menu-skeleton .skeleton-block { animation: none; }
+}
+
+/* Editorial menu enhancements: resilient image fallbacks and panoramic dishes. */
+.public-menu-card .dish-image-photo img + .dish-photo-fallback {
+  display: none;
+}
+
+.public-menu-card-wide {
+  grid-column: span 2;
+}
+
+.public-menu-card-wide .dish-image-photo {
+  aspect-ratio: 2.6 / 1;
+}
+
+.dish-image-placeholder {
+  background: #eadcca !important;
+}
+
+.dish-photo-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--verm);
+  background: linear-gradient(145deg, #eadcca, #f5eadc);
+}
+
+.dish-photo-fallback .fallback-number {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  padding: 7px 10px;
+  background: #b19761;
+  color: #fff;
+  font: 700 20px/1 'DM Sans', sans-serif;
+  letter-spacing: .04em;
+}
+
+.dish-photo-fallback .fallback-mark {
+  font: 600 38px 'Cormorant Garamond', serif;
+  letter-spacing: .08em;
+  opacity: .7;
+}
+
+.dish-photo-fallback small {
+  margin-top: 8px;
+  color: #8a7163;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dish-item-code {
+  display: inline-block;
+  margin-bottom: 6px;
+  color: var(--verm);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+@media(max-width:800px) {
+  .public-menu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .public-menu-card-wide {
+    grid-column: 1 / -1;
+  }
+
+  .public-menu-card .dish-image-photo {
+    aspect-ratio: 1 / 1;
+  }
+
+  .public-menu-card-wide .dish-image-photo {
+    aspect-ratio: 2.15 / 1;
+  }
+
+  .public-menu-card .dish-meta {
+    display: block;
+    padding: 12px 0;
+  }
+
+  .public-menu-card .dish-meta h3 {
+    font-size: 20px;
+    line-height: 1.05;
+  }
+
+  .public-menu-card .dish-meta p {
+    margin-top: 5px;
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .public-menu-card .dish-meta strong {
+    display: block;
+    margin-top: 9px;
+    font-size: 12px;
+  }
+
+  .dish-photo-fallback .fallback-number {
+    top: 9px;
+    left: 9px;
+    padding: 5px 7px;
+    font-size: 14px;
+  }
+
+  .dish-photo-fallback .fallback-mark {
+    font-size: 27px;
+  }
+
+  .dish-photo-fallback small {
+    font-size: 7px;
+    line-height: 1.3;
+  }
+
+  .menu-browser {
+    padding: 24px 16px;
+  }
+
+  .menu-page .page-heading {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .menu-page .filter-row {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    padding-top: 8px;
+    background: #fff;
+  }
+}
+
+.menu-option-quantities{display:grid;gap:7px;min-width:220px}.menu-option{justify-content:space-between;gap:8px;font-size:11px}.menu-option input{flex:0 0 58px;width:58px;margin-left:auto}.selected-order-row small{display:block;color:#777;font-size:10px;margin-top:2px}
+
+/* Keep long category lists inside the menu panel instead of clipping cards. */
+.menu-page .filter-row,.menu-section .filter-row{overflow-x:auto;overflow-y:hidden;align-items:flex-start;scrollbar-width:thin;scrollbar-color:var(--verm) transparent;padding-bottom:13px}.menu-page .filter,.menu-section .filter{flex:0 0 auto;white-space:nowrap;line-height:1.25}.menu-page .filter-row::-webkit-scrollbar,.menu-section .filter-row::-webkit-scrollbar{height:6px}.menu-page .filter-row::-webkit-scrollbar-thumb,.menu-section .filter-row::-webkit-scrollbar-thumb{background:var(--verm);border-radius:999px}
+.dish-image-placeholder{background:linear-gradient(145deg,#f3d9ca 0%,#e6c1b0 48%,#d9a39a 100%) !important}.dish-photo-fallback{background:linear-gradient(145deg,rgba(255,255,255,.2),transparent 45%),repeating-linear-gradient(135deg,rgba(255,255,255,.14) 0 2px,transparent 2px 18px),linear-gradient(145deg,#f3d9ca,#d9a39a)}.dish-photo-fallback .fallback-name{max-width:80%;margin-top:10px;color:var(--ink);font:600 22px/1.05 'Cormorant Garamond',serif;text-align:center}.dish-photo-fallback small{max-width:85%;text-align:center}
