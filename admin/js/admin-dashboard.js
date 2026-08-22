@@ -12,7 +12,7 @@ const toastElement = document.querySelector("#toast");
 const pageTitle = document.querySelector("#page-title");
 const pageSubtitle = document.querySelector("#page-subtitle");
 const dateChip = document.querySelector(".date-chip");
-const state = { view: "overview", bookingFilter: "all", bookingSearch: "", menuSearch: "", menuCategory: "", bookings: [], menuItems: [] };
+const state = { view: "overview", bookingFilter: "pending", bookingSearch: "", bookingDateMode: "all", bookingDateFilter: "", bookingSort: "priority", bookingPage: 1, bookingPageSize: 20, lastBookingsRefresh: null, menuSearch: "", menuCategory: "", bookings: [], menuItems: [] };
 const bookingPoll = { timer: 0, inFlight: false, failures: 0 };
 const BOOKING_POLL_INTERVAL = 20000;
 const BOOKING_POLL_MAX_INTERVAL = 120000;
@@ -90,6 +90,7 @@ async function loadBookings({ signal } = {}) {
   const nextBookings = (await api("/api/admin/bookings", { signal })).bookings || [];
   const changed = bookingSnapshot(nextBookings) !== bookingSnapshot(state.bookings);
   state.bookings = nextBookings;
+  state.lastBookingsRefresh = new Date();
   return changed;
 }
 async function loadMenu() { state.menuItems = (await api("/api/admin/menu")).items || []; }
@@ -214,7 +215,7 @@ document.addEventListener("click", async (event) => {
 });
 document.addEventListener("input", (event) => {
   if (event.target.matches("[data-booking-search]")) {
-    state.bookingSearch = event.target.value; renderBookings();
+    state.bookingSearch = event.target.value; state.bookingPage = 1; renderBookings();
     const next = document.querySelector("[data-booking-search]"); next?.focus(); next?.setSelectionRange(state.bookingSearch.length, state.bookingSearch.length);
   }
   if (event.target.matches("[data-menu-search]")) {
@@ -230,6 +231,167 @@ document.addEventListener("change", async (event) => {
 document.addEventListener("submit", async (event) => {
   if (event.target.id !== "menu-form") return; event.preventDefault(); const payload = Object.fromEntries(new FormData(event.target).entries()); payload.itemPrice = Number(payload.itemPrice); payload.itemAvailable = true;
   try { await api("/api/admin/menu", { method: "POST", body: JSON.stringify(payload) }); modalRoot.innerHTML = ""; await loadMenu(); showToast("Menu item added."); renderMenu(); } catch (error) { showToast(error.message, "warning"); }
+});
+
+// Bookings workspace enhancements: status counts, date/sort controls,
+// compact accessible rows, manual refresh, and bounded pagination.
+const bookingStatusOrder = { pending: 0, confirmed: 1, expired: 2, cancelled: 3 };
+const manilaDateFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" });
+
+function manilaDateKey(value) {
+  if (!value) return "";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return manilaDateFormatter.format(date);
+}
+
+function todayManilaKey() { return manilaDateKey(new Date()); }
+function bookingScheduleValue(booking) {
+  const date = String(booking.bookingDate || "").slice(0, 10);
+  const time = String(booking.bookingStartTime || booking.bookingTimeSlot || "23:59").slice(0, 5);
+  const timestamp = Date.parse(`${date}T${time}:00+08:00`);
+  return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
+}
+function bookingRequestValue(booking) {
+  const timestamp = Date.parse(booking.createdAt || booking.updatedAt || "");
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+function shortBookingReference(value) {
+  const reference = String(value || "");
+  return reference.length > 24 ? `${reference.slice(0, 11)}…${reference.slice(-9)}` : reference;
+}
+function bookingStatusCounts() {
+  return state.bookings.reduce((counts, booking) => {
+    const status = booking.bookingStatus || "pending";
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, { all: state.bookings.length, pending: 0, confirmed: 0, expired: 0, cancelled: 0 });
+}
+function bookingMatchesDate(booking) {
+  const date = manilaDateKey(booking.bookingDate);
+  if (state.bookingDateMode === "today") return date === todayManilaKey();
+  if (state.bookingDateMode === "upcoming") return date >= todayManilaKey();
+  if (state.bookingDateMode === "specific") return !state.bookingDateFilter || date === state.bookingDateFilter;
+  return true;
+}
+
+filteredBookings = function () {
+  const query = state.bookingSearch.trim().toLowerCase();
+  const filtered = state.bookings.filter((booking) => {
+    const matchesStatus = state.bookingFilter === "all" || booking.bookingStatus === state.bookingFilter;
+    const matchesSearch = !query || [booking.bookingID, booking.userFullName, booking.userEmail, booking.bookingType]
+      .some((value) => String(value || "").toLowerCase().includes(query));
+    return matchesStatus && matchesSearch && bookingMatchesDate(booking);
+  });
+  return filtered.sort((left, right) => {
+    if (state.bookingSort === "newest") return bookingRequestValue(right) - bookingRequestValue(left);
+    if (state.bookingSort === "soonest") return bookingScheduleValue(left) - bookingScheduleValue(right);
+    if (state.bookingSort === "customer") return String(left.userFullName || "").localeCompare(String(right.userFullName || ""));
+    return (bookingStatusOrder[left.bookingStatus] ?? 99) - (bookingStatusOrder[right.bookingStatus] ?? 99) || bookingScheduleValue(left) - bookingScheduleValue(right);
+  });
+};
+
+function refreshLabel() {
+  if (!state.lastBookingsRefresh) return "Not refreshed yet";
+  const elapsed = Math.max(0, Date.now() - state.lastBookingsRefresh.getTime());
+  if (elapsed < 60_000) return "Updated just now";
+  return `Updated ${state.lastBookingsRefresh.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" })}`;
+}
+function renderBookingPagination(total) {
+  const totalPages = Math.max(1, Math.ceil(total / state.bookingPageSize));
+  state.bookingPage = Math.min(Math.max(1, state.bookingPage), totalPages);
+  const first = total ? (state.bookingPage - 1) * state.bookingPageSize + 1 : 0;
+  const last = Math.min(state.bookingPage * state.bookingPageSize, total);
+  return `<div class="booking-pagination" aria-label="Booking pages"><span class="booking-page-info">Showing ${first}-${last} of ${total}</span><div class="booking-page-actions"><button class="btn btn-secondary booking-page-button" type="button" data-booking-page="prev" ${state.bookingPage <= 1 ? "disabled" : ""} aria-label="Previous page">Previous</button><span class="booking-page-number" aria-live="polite">Page ${state.bookingPage} of ${totalPages}</span><button class="btn btn-secondary booking-page-button" type="button" data-booking-page="next" ${state.bookingPage >= totalPages ? "disabled" : ""} aria-label="Next page">Next</button></div></div>`;
+}
+
+renderBookings = function () {
+  setHeader("Bookings", "Review requests and keep the schedule current.");
+  const allFiltered = filteredBookings();
+  const totalPages = Math.max(1, Math.ceil(allFiltered.length / state.bookingPageSize));
+  state.bookingPage = Math.min(Math.max(1, state.bookingPage), totalPages);
+  const start = (state.bookingPage - 1) * state.bookingPageSize;
+  const bookings = allFiltered.slice(start, start + state.bookingPageSize);
+  const counts = bookingStatusCounts();
+  const filters = ["all", "pending", "confirmed", "expired", "cancelled"];
+  const dateMode = state.bookingDateMode;
+  const dateButton = (mode, label) => `<button class="date-filter ${dateMode === mode ? "active" : ""}" type="button" data-booking-date-mode="${mode}" aria-pressed="${dateMode === mode}">${label}</button>`;
+  const tableRows = bookings.map((booking) => {
+    const id = booking._id || booking.bookingID;
+    const customer = booking.userFullName || "Customer";
+    const schedule = booking.bookingStartTime || booking.bookingTimeSlot || "—";
+    return `<tr class="booking-row" tabindex="0" role="button" data-booking-row data-booking-id="${escapeHtml(id)}" aria-label="Open booking for ${escapeHtml(customer)}"><td><div class="booking-reference"><span class="ref" title="${escapeHtml(booking.bookingID)}">${escapeHtml(shortBookingReference(booking.bookingID))}</span><button class="copy-reference" type="button" data-copy-reference="${escapeHtml(booking.bookingID)}" aria-label="Copy booking reference">Copy</button></div></td><td><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><small class="row-muted" title="${escapeHtml(booking.userEmail)}">${escapeHtml(booking.userEmail)}</small></td><td><span>${escapeHtml(bookingLabel(booking))}</span><small class="row-muted">${escapeHtml(booking.bookingGuestCount)} guests</small></td><td><span>${escapeHtml(dateOnly(booking.bookingDate))}</span><small class="row-muted">${escapeHtml(schedule)}${booking.bookingEndTime ? ` – ${escapeHtml(booking.bookingEndTime)}` : ""}</small></td><td>${statusBadge(booking.bookingStatus)}</td><td><button class="btn btn-secondary" type="button" data-booking-id="${escapeHtml(id)}">Open</button></td></tr>`;
+  }).join("");
+  app.innerHTML = `<div class="booking-workspace"><div class="booking-toolbar"><div class="booking-toolbar-top"><label class="search booking-search" aria-label="Search bookings">⌕<input data-booking-search type="search" value="${escapeHtml(state.bookingSearch)}" placeholder="Search customer, email, or reference"></label><div class="booking-date-controls" role="group" aria-label="Booking date filters">${dateButton("today", "Today")}${dateButton("upcoming", "Upcoming")}${dateButton("all", "All dates")}<label class="specific-date"><span>Specific date</span><input type="date" data-booking-date value="${escapeHtml(state.bookingDateFilter)}" aria-label="Filter by specific date"></label></div><label class="booking-sort">Sort<select data-booking-sort aria-label="Sort bookings"><option value="priority" ${state.bookingSort === "priority" ? "selected" : ""}>Status priority</option><option value="newest" ${state.bookingSort === "newest" ? "selected" : ""}>Newest request</option><option value="soonest" ${state.bookingSort === "soonest" ? "selected" : ""}>Soonest reservation</option><option value="customer" ${state.bookingSort === "customer" ? "selected" : ""}>Customer name</option></select></label><button class="btn btn-secondary booking-refresh" type="button" data-bookings-refresh>Refresh</button><span class="booking-last-updated" data-bookings-updated aria-live="polite">${refreshLabel()}</span></div><div class="booking-tabs" role="tablist" aria-label="Booking status">${filters.map((filter) => `<button class="filter-tab ${state.bookingFilter === filter ? "active" : ""}" type="button" data-booking-filter="${filter}" role="tab" aria-selected="${state.bookingFilter === filter}">${titleCase(filter)} <span class="tab-count">${counts[filter] || 0}</span></button>`).join("")}</div></div><section class="panel"><div class="panel-head"><div><h2 class="panel-title">Booking requests</h2><p class="booking-context">Pending requests are shown first for quick review.</p></div><small>${allFiltered.length} shown</small></div><div class="table-wrap"><table class="booking-table" aria-label="Booking requests"><caption class="sr-only">Customer reservation booking requests</caption><thead><tr><th>Reference</th><th>Customer</th><th>Reservation</th><th>Schedule</th><th>Status</th><th>Action</th></tr></thead><tbody>${tableRows || `<tr><td colspan="6">${renderEmpty("No bookings found", "Try another status, date, or search term.")}</td></tr>`}</tbody></table></div>${renderBookingPagination(allFiltered.length)}</section></div>`;
+};
+
+function resetBookingPage() { state.bookingPage = 1; }
+async function refreshBookingsFromUi(button) {
+  if (bookingPoll.inFlight) return;
+  bookingPoll.inFlight = true;
+  button.disabled = true;
+  try {
+    const changed = await loadBookings();
+    bookingPoll.failures = 0;
+    if (state.view === "bookings") renderBookings();
+    showToast(changed ? "Bookings refreshed." : "Bookings are up to date.");
+  } catch (error) {
+    showToast(error.message, "warning");
+  } finally {
+    bookingPoll.inFlight = false;
+    button.disabled = false;
+    scheduleBookingPoll();
+  }
+}
+async function copyReference(value) {
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value);
+    else throw new Error("clipboard unavailable");
+    showToast("Booking reference copied.");
+  } catch {
+    showToast("Copy is unavailable in this browser.", "warning");
+  }
+}
+
+// Capture cancellation/expiration before the legacy action listener can send
+// the request, so destructive status changes always require confirmation.
+document.addEventListener("click", (event) => {
+  const update = event.target.closest("[data-update-booking]");
+  if (!update || !["cancelled", "expired"].includes(update.dataset.updateBooking)) return;
+  const label = update.dataset.updateBooking === "cancelled" ? "cancel this booking" : "mark this booking expired";
+  if (!window.confirm(`Are you sure you want to ${label}?`)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+
+document.addEventListener("click", async (event) => {
+  const filter = event.target.closest("[data-booking-filter]");
+  if (filter) { state.bookingFilter = filter.dataset.bookingFilter; resetBookingPage(); return renderBookings(); }
+  const dateMode = event.target.closest("[data-booking-date-mode]");
+  if (dateMode) { state.bookingDateMode = dateMode.dataset.bookingDateMode; if (state.bookingDateMode !== "specific") state.bookingDateFilter = ""; resetBookingPage(); return renderBookings(); }
+  const refresh = event.target.closest("[data-bookings-refresh]");
+  if (refresh) return refreshBookingsFromUi(refresh);
+  const pageButton = event.target.closest("[data-booking-page]");
+  if (pageButton && !pageButton.disabled) { state.bookingPage += pageButton.dataset.bookingPage === "next" ? 1 : -1; return renderBookings(); }
+  const copyButton = event.target.closest("[data-copy-reference]");
+  if (copyButton) { event.stopPropagation(); return copyReference(copyButton.dataset.copyReference); }
+  const row = event.target.closest("tr[data-booking-row]");
+  if (row && !event.target.closest("button,a")) return openBookingDrawer(row.dataset.bookingId);
+});
+document.addEventListener("keydown", (event) => {
+  const row = event.target.closest?.("tr[data-booking-row]");
+  if (row && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); openBookingDrawer(row.dataset.bookingId); }
+});
+document.addEventListener("input", (event) => {
+  if (!event.target.matches("[data-booking-search]")) return;
+  state.bookingSearch = event.target.value;
+  resetBookingPage();
+});
+document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-booking-sort]")) { state.bookingSort = event.target.value; resetBookingPage(); renderBookings(); return; }
+  if (event.target.matches("[data-booking-date]")) { state.bookingDateFilter = event.target.value; state.bookingDateMode = event.target.value ? "specific" : "all"; resetBookingPage(); renderBookings(); }
 });
 
 // Keep the function-hall time inputs quoted correctly for browsers that parse
