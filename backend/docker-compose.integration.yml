@@ -23,7 +23,10 @@ services:
       - --host
       - mongo-rs:27017
       - --eval
-      - "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo-rs:27017'}]})"
+      # Advertise an address reachable by tests running on the Windows host.
+      # Advertising the Docker-only service name causes host-side Mongoose
+      # clients to fail with ENOTFOUND after replica-set discovery.
+      - "rs.initiate({_id:'rs0',members:[{_id:0,host:'host.docker.internal:27018'}]})"
 
 volumes:
   abct-integration-mongo:
